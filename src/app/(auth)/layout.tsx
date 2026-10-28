@@ -15,7 +15,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <CornerSwoosh />
 
       <section className="relative hidden w-[58%] flex-col bg-gradient-to-b from-[#eef0f3] via-[#f7efe9] to-[#f4d3bd] lg:flex">
-        <div className="relative z-10 px-14 pt-12 xl:px-20">
+        <div className="relative z-10 px-14 pt-12 text-center xl:px-20">
           <Logo priority className="mx-auto w-[min(24rem,70%)]" />
 
           <h1 className="mt-6 text-5xl leading-[1.05] font-extrabold tracking-tight text-ink-950 xl:text-6xl">
@@ -23,7 +23,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <br />
             Deliver <span className="text-brand-600">Further.</span>
           </h1>
-          <p className="mt-5 max-w-md text-lg leading-snug text-ink-700">
+          <p className="mx-auto mt-5 max-w-md text-lg leading-snug text-ink-700">
             End-to-end logistics management for a more efficient and connected supply chain.
           </p>
         </div>
@@ -37,7 +37,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/55 to-transparent" aria-hidden />
           <RoutePins />
 
-          <ul className="relative z-10 grid max-w-2xl grid-cols-4 gap-5 px-14 pb-10 xl:px-20">
+          <ul className="relative z-10 mx-auto grid w-full max-w-2xl grid-cols-4 gap-5 px-14 pb-10 xl:px-20">
             {FEATURES.map(({ icon: Icon, label }) => (
               <li
                 key={label}
