@@ -1,0 +1,15 @@
+# Runs the frontend on its own against an API you already have running.
+# For the full stack (MySQL + API + frontend) use ../docker-compose.yml.
+name: blitzmove-frontend
+
+services:
+  frontend:
+    build: .
+    restart: unless-stopped
+    environment:
+      API_URL: ${API_URL:-http://host.docker.internal:8000}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"

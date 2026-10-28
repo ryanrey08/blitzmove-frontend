@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background-color: var(--color-ink-50);
+  color: var(--color-ink-900);
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .input {
+    @apply block w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 shadow-xs transition focus:border-brand-600 focus:ring-2 focus:ring-brand-600/15 focus:outline-none disabled:cursor-not-allowed disabled:bg-ink-50;
+  }
+  .input-invalid {
+    @apply border-brand-600 focus:ring-brand-600/25;
+  }
+}
+
+/* Thin scrollbars inside the sidebar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
