@@ -16,7 +16,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <section className="relative hidden w-[58%] flex-col bg-gradient-to-b from-[#eef0f3] via-[#f7efe9] to-[#f4d3bd] lg:flex">
         <div className="relative z-10 px-14 pt-12 xl:px-20">
-          <Logo priority className="w-[min(24rem,70%)]" />
+          <Logo priority className="mx-auto w-[min(24rem,70%)]" />
 
           <h1 className="mt-6 text-5xl leading-[1.05] font-extrabold tracking-tight text-ink-950 xl:text-6xl">
             Move <span className="bg-gradient-to-r from-ink-950 via-ink-950 to-ink-400 bg-clip-text text-transparent">Smarter.</span>
