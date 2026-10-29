@@ -24,7 +24,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge, StatusBadge } from "@/components/ui/badge";
@@ -32,19 +32,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Checkbox, Field, FormError, Input, Select, Textarea } from "@/components/ui/form";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
+import { ErrorState, LoadingState } from "@/components/ui/states";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { usePermissions } from "@/hooks/use-current-user";
-import { DRIVER_STATUS, FUEL_TYPES, LICENSE_TYPES, STOP_TYPE, TRIP_PRIORITY, TRIP_TYPES, VEHICLE_STATUS, VEHICLE_TYPES, labelOf } from "@/lib/constants";
+import { DRIVER_STATUS, FUEL_TYPES, LICENSE_TYPES, STOP_TYPE, TRIP_PRIORITY, TRIP_STATUS, TRIP_TYPES, VEHICLE_STATUS, VEHICLE_TYPES, labelOf } from "@/lib/constants";
 import { cn, formatDate, formatDateTime, formatNumber, formatTime, fromDateTimeLocal, toDateTimeLocal } from "@/lib/utils";
 import { tripsService } from "@/services/resources";
 import type { Trip } from "@/types/api";
 import { checklist } from "./dispatch-view";
 import { RouteMap, useRoutePreview, useRoutingStatus } from "./route-map";
 import { TRIPS_PATH } from "./trip-schedule-view";
+import { DISPATCH_PATH, TRANSITIONS, availableTransitions, useTripTransition } from "./trip-status-actions";
 import { TRIP_KEYS, useTrip } from "./use-trip";
 
-const DISPATCH_PATH = "/transportation/dispatch";
 const MESSAGE_LIMIT = 500;
 
 function formatDuration(minutes: number) {
@@ -72,97 +72,21 @@ function defaultMessage(trip: Trip, durationMinutes: number | null) {
     .slice(0, MESSAGE_LIMIT);
 }
 
-/** `/transportation/dispatch/create`: pick a scheduled trip, review it, and release it to the driver. */
-export function DispatchTripView() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { canOperate } = usePermissions();
-  const tripId = Number(searchParams.get("trip")) || null;
+/** `/transportation/dispatch/[id]`: review one trip and dispatch it, or apply the moves its status allows. */
+export function DispatchTripView({ tripId }: { tripId: number }) {
+  const { data, isLoading, error, refetch } = useTrip(tripId);
+  const trip = data?.data;
 
-  const eligible = useQuery({
-    queryKey: ["trips", "dispatchable"],
-    queryFn: () => tripsService.list({ status: "scheduled", sort: "departure_at", per_page: 100 }),
-  });
-  const selected = useTrip(tripId);
-  const trip = selected.data?.data;
-
-  const select = (id: string) => router.replace(id ? `${DISPATCH_PATH}/create?trip=${id}` : `${DISPATCH_PATH}/create`, { scroll: false });
-
-  if (!canOperate) return <ErrorState message="You do not have permission to dispatch trips." />;
-
-  // A trip already dispatched (e.g. by someone else) stays visible but can't be sent again.
-  const options = (eligible.data?.data ?? []).map((t) => ({ value: String(t.id), label: `${t.trip_number} · ${t.origin} → ${t.destination} · ${formatDateTime(t.departure_at)}` }));
-  if (trip && !options.some((o) => o.value === String(trip.id))) options.unshift({ value: String(trip.id), label: `${trip.trip_number} · ${trip.origin} → ${trip.destination}` });
-
-  return (
-    <>
-      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">Dispatch Trip</h1>
-          <p className="mt-1 text-sm text-ink-500 sm:text-base">Dispatch the trip to the assigned driver and vehicle.</p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-ink-500">
-            <Link href={DISPATCH_PATH} className="hover:text-ink-900">
-              Dispatch Management
-            </Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="font-medium text-ink-900">Dispatch Trip</span>
-          </nav>
-          <div className="flex gap-2 sm:ml-4">
-            <Button variant="secondary" size="lg" onClick={() => router.push(DISPATCH_PATH)}>
-              Cancel
-            </Button>
-            <Button size="lg" form="dispatch-form" type="submit" disabled={!trip || trip.status !== "scheduled"} className="min-w-44">
-              <Send className="h-4 w-4" /> Dispatch Trip
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <Card className="mb-5">
-        <CardBody className="flex flex-col gap-3 py-4 sm:flex-row sm:items-end">
-          <Field label="Trip Schedule" htmlFor="trip-select" required className="flex-1" hint={eligible.data ? `${eligible.data.meta.total} scheduled trip${eligible.data.meta.total === 1 ? "" : "s"} ready to dispatch` : undefined}>
-            <Select id="trip-select" value={tripId ? String(tripId) : ""} onChange={(e) => select(e.target.value)} options={options} placeholder={eligible.isLoading ? "Loading trips…" : "Select a scheduled trip"} disabled={eligible.isLoading} />
-          </Field>
-          {trip && (
-            <Link href={`${TRIPS_PATH}/${trip.id}`} className="text-sm font-medium text-brand-600 hover:underline sm:pb-8">
-              View trip
-            </Link>
-          )}
-        </CardBody>
-      </Card>
-
-      {eligible.error ? (
-        <ErrorState message={eligible.error.message} onRetry={() => eligible.refetch()} />
-      ) : !tripId ? (
-        <Card>
-          <EmptyState
-            title={eligible.data && eligible.data.meta.total === 0 ? "No trips waiting for dispatch" : "Select a trip to dispatch"}
-            description={eligible.data && eligible.data.meta.total === 0 ? "Schedule a trip in Trip Scheduling first." : "Only scheduled trips can be dispatched. Their details, stops and assignment appear here for review."}
-            icon={<Send className="h-6 w-6" />}
-            action={
-              eligible.data && eligible.data.meta.total === 0 ? (
-                <Button size="sm" onClick={() => router.push(`${TRIPS_PATH}/create`)}>
-                  Add New Trip
-                </Button>
-              ) : undefined
-            }
-          />
-        </Card>
-      ) : selected.isLoading ? (
-        <LoadingState label="Loading trip…" />
-      ) : selected.error || !trip ? (
-        <ErrorState message={selected.error?.message ?? "Trip not found."} onRetry={() => selected.refetch()} />
-      ) : (
-        <DispatchForm key={trip.id} trip={trip} />
-      )}
-    </>
-  );
+  if (isLoading) return <LoadingState label="Loading trip…" />;
+  if (error || !trip) return <ErrorState message={error?.message ?? "Trip not found."} onRetry={() => refetch()} />;
+  return <DispatchForm key={trip.id} trip={trip} />;
 }
 
 function DispatchForm({ trip }: { trip: Trip }) {
   const router = useRouter();
+  const { canOperate } = usePermissions();
+  const transition = useTripTransition();
+  const moves = canOperate ? availableTransitions(trip) : [];
   const { configured } = useRoutingStatus();
   const preview = useRoutePreview(
     (trip.stops ?? []).map((s) => ({ label: s.location_name, query: s.address || s.location_name })),
@@ -214,7 +138,8 @@ function DispatchForm({ trip }: { trip: Trip }) {
 
   const checks = checklist({ ...trip, vehicle, driver });
   const blocking = checks.filter((c) => !c.ok && !c.optional);
-  const dispatchable = trip.status === "scheduled";
+  // Only scheduled trips can be dispatched (TripStatus::Scheduled -> Dispatched); the API enforces the same rule.
+  const dispatchable = canOperate && trip.status === "scheduled";
 
   const dispatch = useApiMutation(
     () =>
@@ -226,7 +151,7 @@ function DispatchForm({ trip }: { trip: Trip }) {
     {
       invalidate: TRIP_KEYS,
       successMessage: `Trip ${trip.trip_number} dispatched to ${driver?.full_name ?? "the driver"}.`,
-      onSuccess: () => router.push(`${DISPATCH_PATH}?trip=${trip.id}`),
+      onSuccess: () => router.push(DISPATCH_PATH),
     },
   );
 
@@ -267,6 +192,45 @@ function DispatchForm({ trip }: { trip: Trip }) {
 
   return (
     <form id="dispatch-form" onSubmit={submit} noValidate>
+      <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">{dispatchable ? "Dispatch Trip" : trip.trip_number}</h1>
+            <StatusBadge status={trip.status} map={TRIP_STATUS} />
+          </div>
+          <p className="mt-1 text-sm text-ink-500 sm:text-base">
+            {dispatchable ? "Dispatch the trip to the assigned driver and vehicle." : `${trip.origin} → ${trip.destination}`}
+          </p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-sm text-ink-500">
+            <Link href={DISPATCH_PATH} className="hover:text-ink-900">
+              Dispatch Management
+            </Link>
+            <ChevronRight className="h-4 w-4" />
+            <span className="font-medium text-ink-900">{dispatchable ? "Dispatch Trip" : trip.trip_number}</span>
+          </nav>
+          <div className="flex flex-wrap gap-2 sm:ml-4">
+            <Button variant="secondary" size="lg" onClick={() => router.push(DISPATCH_PATH)}>
+              {dispatchable ? "Cancel" : "Back"}
+            </Button>
+            {dispatchable ? (
+              <Button size="lg" type="submit" className="min-w-44" loading={dispatch.isPending} disabled={blocking.length > 0}>
+                <Send className="h-4 w-4" /> Dispatch Trip
+              </Button>
+            ) : (
+              moves
+                .filter((key) => key !== "cancelled")
+                .map((key, i) => (
+                  <Button key={key} size="lg" variant={i === 0 ? "primary" : "secondary"} onClick={() => transition.request(trip, key)} className="[&>svg]:h-4 [&>svg]:w-4">
+                    {TRANSITIONS[key].icon} {TRANSITIONS[key].label}
+                  </Button>
+                ))
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Summary strip */}
       <Card className="mb-5">
         <dl className="grid grid-cols-2 divide-ink-100 sm:grid-cols-4 xl:grid-cols-[auto_auto_minmax(0,2fr)_repeat(4,auto)] xl:divide-x">
@@ -285,12 +249,13 @@ function DispatchForm({ trip }: { trip: Trip }) {
           <FormError message={formError} />
         </div>
       )}
-      {!dispatchable && (
+      {trip.status !== "scheduled" && (
         <div className="mb-5 flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" role="status">
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            {trip.trip_number} is already <strong>{trip.status.replace("_", " ")}</strong>
-            {trip.dispatched_at ? ` (dispatched ${formatDateTime(trip.dispatched_at)}${trip.dispatched_by ? ` by ${trip.dispatched_by.name}` : ""})` : ""}. It can&apos;t be dispatched again.
+            This trip is <strong>{TRIP_STATUS[trip.status].label}</strong>
+            {trip.dispatched_at ? ` (dispatched ${formatDateTime(trip.dispatched_at)}${trip.dispatched_by ? ` by ${trip.dispatched_by.name}` : ""})` : ""}, so it can&apos;t be dispatched.
+            {moves.length > 0 ? " Only the actions valid for this status are shown." : " No further status changes are possible."}
           </span>
         </div>
       )}
@@ -347,9 +312,11 @@ function DispatchForm({ trip }: { trip: Trip }) {
                     <p className="text-ink-500">Customer</p>
                     <p className="mt-1 font-medium text-ink-900">{customers.length > 1 ? "Multiple (see stops)" : (customers[0] ?? "—")}</p>
                   </div>
-                  <Button variant="secondary" size="sm" onClick={() => router.push(`${TRIPS_PATH}/${trip.id}/edit`)} disabled={!dispatchable}>
-                    <Pencil className="h-3.5 w-3.5" /> Edit
-                  </Button>
+                  {dispatchable && (
+                    <Button variant="secondary" size="sm" onClick={() => router.push(`${TRIPS_PATH}/${trip.id}/edit`)}>
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </Button>
+                  )}
                 </div>
                 <div>
                   <p className="text-ink-500">Created By</p>
@@ -372,9 +339,11 @@ function DispatchForm({ trip }: { trip: Trip }) {
               title={`Stops & Orders (${stops.length})`}
               icon={<MapPin />}
               action={
-                <Button variant="secondary" size="sm" className="border-sky-300 text-sky-700 hover:bg-sky-50" onClick={() => router.push(`${TRIPS_PATH}/${trip.id}/edit#trip-stops`)} disabled={!dispatchable}>
-                  <Pencil className="h-3.5 w-3.5" /> Edit Stops
-                </Button>
+                dispatchable && (
+                  <Button variant="secondary" size="sm" className="border-sky-300 text-sky-700 hover:bg-sky-50" onClick={() => router.push(`${TRIPS_PATH}/${trip.id}/edit#trip-stops`)}>
+                    <Pencil className="h-3.5 w-3.5" /> Edit Stops
+                  </Button>
+                )
               }
             />
             <div className="overflow-x-auto px-3 pb-3">
@@ -529,64 +498,104 @@ function DispatchForm({ trip }: { trip: Trip }) {
             </div>
           </Card>
 
-          {/* Dispatch options */}
-          <Card>
-            <CardHeader title="Dispatch Options" icon={<Send />} />
-            <CardBody className="space-y-4">
-              <div>
-                <p className="mb-2 text-sm font-semibold text-ink-900">Send Via</p>
-                <div className="space-y-1.5">
-                  <Checkbox label="Send to Driver App (Push Notification)" checked={false} disabled />
-                  <Checkbox label="Send via SMS (Trip Summary Link)" checked={false} disabled />
-                  <Checkbox label="Send via Email (Trip Details)" checked={false} disabled />
-                </div>
-                <p className="mt-1.5 text-xs text-ink-500">No driver app, SMS or email service is configured yet. The message is saved on the trip as dispatch notes.</p>
-              </div>
-              <Field label="Dispatch Date & Time" htmlFor="dispatched_at" error={fieldErrors.dispatched_at} required>
-                <Input id="dispatched_at" type="datetime-local" value={dispatchedAt} max={toDateTimeLocal(new Date())} onChange={(e) => setDispatchedAt(e.target.value)} invalid={!!fieldErrors.dispatched_at} disabled={!dispatchable} />
-              </Field>
-              <Field label="Message to Driver" htmlFor="dispatch-message" error={fieldErrors.notes}>
-                <Textarea
-                  id="dispatch-message"
-                  rows={8}
-                  value={message}
-                  maxLength={MESSAGE_LIMIT}
-                  onChange={(e) => {
-                    setTouched(true);
-                    setMessage(e.target.value);
-                  }}
-                  disabled={!dispatchable}
-                />
-                <p className="mt-1 text-right text-xs text-ink-500">
-                  {message.length}/{MESSAGE_LIMIT}
-                </p>
-              </Field>
+          {dispatchable ? (
+            <>
+              {/* Dispatch options */}
+              <Card>
+                <CardHeader title="Dispatch Options" icon={<Send />} />
+                <CardBody className="space-y-4">
+                  <div>
+                    <p className="mb-2 text-sm font-semibold text-ink-900">Send Via</p>
+                    <div className="space-y-1.5">
+                      <Checkbox label="Send to Driver App (Push Notification)" checked={false} disabled />
+                      <Checkbox label="Send via SMS (Trip Summary Link)" checked={false} disabled />
+                      <Checkbox label="Send via Email (Trip Details)" checked={false} disabled />
+                    </div>
+                    <p className="mt-1.5 text-xs text-ink-500">No driver app, SMS or email service is configured yet. The message is saved on the trip as dispatch notes.</p>
+                  </div>
+                  <Field label="Dispatch Date & Time" htmlFor="dispatched_at" error={fieldErrors.dispatched_at} required>
+                    <Input id="dispatched_at" type="datetime-local" value={dispatchedAt} max={toDateTimeLocal(new Date())} onChange={(e) => setDispatchedAt(e.target.value)} invalid={!!fieldErrors.dispatched_at} />
+                  </Field>
+                  <Field label="Message to Driver" htmlFor="dispatch-message" error={fieldErrors.notes}>
+                    <Textarea
+                      id="dispatch-message"
+                      rows={8}
+                      value={message}
+                      maxLength={MESSAGE_LIMIT}
+                      onChange={(e) => {
+                        setTouched(true);
+                        setMessage(e.target.value);
+                      }}
+                 
+                    />
+                    <p className="mt-1 text-right text-xs text-ink-500">
+                      {message.length}/{MESSAGE_LIMIT}
+                    </p>
+                  </Field>
 
-              <ul className="space-y-1.5 rounded-lg bg-ink-50 p-3 text-xs">
-                {checks.map((check) => (
-                  <li key={check.label} className="flex items-center gap-2">
-                    {check.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Circle className={cn("h-3.5 w-3.5", check.optional ? "text-ink-300" : "text-brand-600")} />}
-                    <span className={cn(check.ok ? "text-ink-700" : check.optional ? "text-ink-500" : "font-medium text-brand-700")}>
-                      {check.label}
-                      {check.optional && !check.ok && " (optional)"}
-                    </span>
-                  </li>
+                  <ul className="space-y-1.5 rounded-lg bg-ink-50 p-3 text-xs">
+                    {checks.map((check) => (
+                      <li key={check.label} className="flex items-center gap-2">
+                        {check.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> : <Circle className={cn("h-3.5 w-3.5", check.optional ? "text-ink-300" : "text-brand-600")} />}
+                        <span className={cn(check.ok ? "text-ink-700" : check.optional ? "text-ink-500" : "font-medium text-brand-700")}>
+                          {check.label}
+                          {check.optional && !check.ok && " (optional)"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button type="submit" size="lg" className="w-full" disabled={blocking.length > 0} loading={dispatch.isPending}>
+                    <Send className="h-4 w-4" /> Dispatch Trip
+                  </Button>
+                  {moves.includes("cancelled") && (
+                    <Button variant="ghost" className="w-full text-brand-700 hover:bg-brand-50" onClick={() => transition.request(trip, "cancelled")}>
+                      {TRANSITIONS.cancelled.icon} {TRANSITIONS.cancelled.label}
+                    </Button>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button variant="secondary" onClick={() => window.print()}>
+                      <Printer className="h-4 w-4" /> Print Trip Sheet
+                    </Button>
+                    <Button variant="secondary" onClick={() => router.push(`/transportation/itinerary?trip=${trip.id}`)}>
+                      <Eye className="h-4 w-4" /> Preview Itinerary
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardHeader title="Dispatch Status" icon={<Send />} action={<StatusBadge status={trip.status} map={TRIP_STATUS} />} />
+              <CardBody className="space-y-4 text-sm">
+                <dl className="space-y-2">
+                  <Row label="Dispatched" value={trip.dispatched_at ? formatDateTime(trip.dispatched_at) : "—"} />
+                  <Row label="Dispatched By" value={trip.dispatched_by?.name ?? "—"} />
+                  <Row label="Departed" value={trip.actual_departure_at ? formatDateTime(trip.actual_departure_at) : "—"} />
+                  <Row label="Arrived" value={trip.actual_arrival_at ? formatDateTime(trip.actual_arrival_at) : "—"} />
+                </dl>
+                {trip.dispatch_notes && (
+                  <div className="rounded-lg bg-ink-50 p-3 whitespace-pre-line text-ink-700">
+                    <p className="mb-1 text-xs font-semibold text-ink-500">Message to driver</p>
+                    {trip.dispatch_notes}
+                  </div>
+                )}
+                {moves.map((key, i) => (
+                  <Button
+                    key={key}
+                    className={cn("w-full [&>svg]:h-4 [&>svg]:w-4", key === "cancelled" && "text-brand-700 hover:bg-brand-50")}
+                    variant={key === "cancelled" ? "ghost" : i === 0 && key !== "recall" ? "primary" : "secondary"}
+                    onClick={() => transition.request(trip, key)}
+                  >
+                    {TRANSITIONS[key].icon} {TRANSITIONS[key].label}
+                  </Button>
                 ))}
-              </ul>
-
-              <Button type="submit" size="lg" className="w-full" disabled={!dispatchable || blocking.length > 0} loading={dispatch.isPending}>
-                <Send className="h-4 w-4" /> Dispatch Trip
-              </Button>
-              <div className="grid grid-cols-2 gap-3">
-                <Button variant="secondary" onClick={() => window.print()}>
-                  <Printer className="h-4 w-4" /> Print Trip Sheet
-                </Button>
-                <Button variant="secondary" onClick={() => router.push(`/transportation/itinerary?trip=${trip.id}`)}>
+                <Button variant="secondary" className="w-full" onClick={() => router.push(`/transportation/itinerary?trip=${trip.id}`)}>
                   <Eye className="h-4 w-4" /> Preview Itinerary
                 </Button>
-              </div>
-            </CardBody>
-          </Card>
+              </CardBody>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -606,6 +615,7 @@ function DispatchForm({ trip }: { trip: Trip }) {
         onConfirm={confirm}
         onClose={() => setConfirming(false)}
       />
+      {transition.dialog}
     </form>
   );
 }

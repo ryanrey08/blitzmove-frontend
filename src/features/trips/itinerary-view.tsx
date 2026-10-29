@@ -80,7 +80,7 @@ export function ItineraryView() {
                 {trip.notes && <DetailRow label="Notes"><span className="whitespace-pre-line">{trip.notes}</span></DetailRow>}
               </dl>
               <div className="mt-4 flex flex-wrap gap-2">
-                <Link href={`/transportation/dispatch?trip=${trip.id}`}>
+                <Link href={`/transportation/dispatch/${trip.id}`}>
                   <Button variant="secondary" size="sm">Open in dispatch</Button>
                 </Link>
                 <Link href={`/transportation/route-optimization?trip=${trip.id}`}>

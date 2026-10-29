@@ -381,7 +381,7 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             This trip is <strong>{TRIP_STATUS[trip.status].label.toLowerCase()}</strong> and can no longer be edited here. Use{" "}
-            <Link href={`/transportation/dispatch?trip=${trip.id}`} className="font-medium underline">
+            <Link href={`/transportation/dispatch/${trip.id}`} className="font-medium underline">
               Dispatch Management
             </Link>{" "}
             for trips that have been released.
