@@ -417,7 +417,9 @@ function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
             <Field label="Assigned Driver" htmlFor="assigned_driver_id" error={errors.assigned_driver_id?.message}>
               <div className="relative">
                 {driver && <Avatar name={driver.full_name} size="sm" className="pointer-events-none absolute top-1/2 left-1.5 h-7 w-7 -translate-y-1/2 text-[10px]" />}
+                {/* Remounts once the options load so the saved driver is selected. */}
                 <Select
+                  key={drivers.data ? "loaded" : "loading"}
                   id="assigned_driver_id"
                   className={cn(driver && "pl-10")}
                   options={(drivers.data?.data ?? []).map((d) => ({

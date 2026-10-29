@@ -65,9 +65,24 @@ export const vehiclesService = {
   summary: () => api.get<{ data: StatusCount[] }>("vehicles/summary"),
 };
 
+export interface DriverPerformance {
+  completed_trips: number;
+  /** % of completed trips that arrived by their estimated time; null without completed trips. */
+  on_time_rate: number | null;
+  cancelled_trips: number;
+}
+
 export const driversService = {
   ...crud<Driver>("drivers"),
-  summary: () => api.get<{ data: StatusCount[] }>("drivers/summary"),
+  /** Driver detail plus 30-day performance from trip records. */
+  detail: (id: number) => api.get<Resource<Driver> & { performance: DriverPerformance }>(`drivers/${id}`),
+  summary: () => api.get<{ data: (StatusCount & { this_month: number; last_month: number })[] }>("drivers/summary"),
+  uploadPhoto: (id: number, file: File) => {
+    const form = new FormData();
+    form.set("photo", file);
+    return api.post<{ data: { photo: string }; message: string }>(`drivers/${id}/photo`, form);
+  },
+  removePhoto: (id: number) => api.delete<{ message: string }>(`drivers/${id}/photo`),
 };
 
 export const tripsService = {

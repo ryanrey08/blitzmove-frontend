@@ -58,6 +58,13 @@ export interface Driver {
   license_expiry: string;
   license_expired: boolean;
   date_hired: string | null;
+  date_of_birth: string | null;
+  license_restrictions: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
+  emergency_contact_relation: string | null;
+  /** API path of the driver's photo; open it with api.url(). */
+  photo: string | null;
   status: DriverStatus;
   notes: string | null;
   assigned_vehicle?: Vehicle | null;
