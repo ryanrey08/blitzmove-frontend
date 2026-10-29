@@ -18,6 +18,7 @@ import type {
   TripStatus,
   TripStop,
   Vehicle,
+  VehicleLocation,
 } from "@/types/api";
 
 type Payload = Record<string, unknown>;
@@ -86,7 +87,9 @@ export const stopsService = {
   create: (tripId: number, data: Payload) => api.post<Resource<TripStop>>(`trips/${tripId}/stops`, data),
   update: (tripId: number, stopId: number, data: Payload) => api.patch<Resource<TripStop>>(`trips/${tripId}/stops/${stopId}`, data),
   remove: (tripId: number, stopId: number) => api.delete<{ message: string }>(`trips/${tripId}/stops/${stopId}`),
-  reorder: (tripId: number, stopIds: number[]) => api.put<{ data: TripStop[] }>(`trips/${tripId}/stops/reorder`, { stop_ids: stopIds }),
+  /** `optimized` marks the order as coming from the routing provider; `distance_km` then saves its distance. */
+  reorder: (tripId: number, stopIds: number[], options: { optimized?: boolean; distance_km?: number | null } = {}) =>
+    api.put<{ data: TripStop[] }>(`trips/${tripId}/stops/reorder`, { stop_ids: stopIds, ...options }),
 };
 
 export const fuelService = {
@@ -110,7 +113,15 @@ export const monitoringService = {
   get: () => api.get<{ data: MonitoringData }>("fleet/monitoring"),
 };
 
+export interface VehicleTrack {
+  vehicle: Vehicle;
+  locations: VehicleLocation[];
+  /** PNG data URI of the track, rendered server-side; null without a map provider. */
+  image: string | null;
+}
+
 export const gpsService = {
+  track: (vehicleId: number, limit = 200) => api.get<{ data: VehicleTrack; meta: { map_provider_configured: boolean } }>(`gps/vehicles/${vehicleId}/track`, { limit }),
   vehicles: () =>
     api.get<{ data: Vehicle[]; meta: { map_provider_configured: boolean; has_gps_data: boolean; last_reported_at: string | null } }>(
       "gps/vehicles",

@@ -186,6 +186,8 @@ export interface Trip {
   actual_departure_at: string | null;
   actual_arrival_at: string | null;
   distance_km: number | null;
+  /** Set when the stop order came from route optimization; cleared when stops change by hand. */
+  route_optimized_at: string | null;
   status: TripStatus;
   allowed_transitions: TripStatus[];
   dispatched_at: string | null;

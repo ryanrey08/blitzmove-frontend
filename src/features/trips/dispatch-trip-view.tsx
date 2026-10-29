@@ -475,7 +475,7 @@ function DispatchForm({ trip }: { trip: Trip }) {
               title="Route Map"
               icon={<MapIcon />}
               action={
-                <Button variant="secondary" size="sm" className="border-sky-300 text-sky-700 hover:bg-sky-50" onClick={() => router.push(`/transportation/route-optimization?trip=${trip.id}`)}>
+                <Button variant="secondary" size="sm" className="border-sky-300 text-sky-700 hover:bg-sky-50" onClick={() => router.push(`/transportation/route-optimization/${trip.id}`)}>
                   View Full Map
                 </Button>
               }

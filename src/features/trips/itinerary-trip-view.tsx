@@ -75,7 +75,7 @@ export function ItineraryTripView({ tripId }: { tripId: number }) {
                 <Link href={`/transportation/dispatch/${trip.id}`}>
                   <Button variant="secondary" size="sm">Open in dispatch</Button>
                 </Link>
-                <Link href={`/transportation/route-optimization?trip=${trip.id}`}>
+                <Link href={`/transportation/route-optimization/${trip.id}`}>
                   <Button variant="secondary" size="sm">Plan route</Button>
                 </Link>
               </div>

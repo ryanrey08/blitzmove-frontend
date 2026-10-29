@@ -1,76 +1,83 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Info, MapPinned, Save, Sparkles, Undo2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { StatusBadge } from "@/components/ui/badge";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Info, MapPinned, Sparkles } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
 import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/states";
+import { Pagination } from "@/components/ui/pagination";
+import { SearchInput } from "@/components/ui/search-input";
+import { Tabs } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/toast";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { usePermissions } from "@/hooks/use-current-user";
-import { STOP_TYPE, TRIP_STATUS } from "@/lib/constants";
-import { formatDateTime, formatNumber } from "@/lib/utils";
-import { routingService, stopsService, tripsService } from "@/services/resources";
-import type { TripStop } from "@/types/api";
-import { RouteMap, useRoutePreview } from "./route-map";
-import { TripPicker } from "./trip-picker";
-import { TRIP_KEYS, useTrip } from "./use-trip";
+import { useListParams } from "@/hooks/use-list-params";
+import { TRIP_STATUS } from "@/lib/constants";
+import { formatDate, formatDateTime, formatNumber, formatTime } from "@/lib/utils";
+import { stopsService, tripsService } from "@/services/resources";
+import type { Trip } from "@/types/api";
+import { useRoutingStatus } from "./route-map";
+import { ROUTE_PLANNING_PATH } from "./route-optimization-trip-view";
+import { TRIP_KEYS } from "./use-trip";
 
-/**
- * Manual route planning. Stop order can be changed and saved; automatic
- * optimisation, distances and travel times require a configured routing provider.
- */
+const TABS = [
+  { value: "unoptimized", label: "Needs planning" },
+  { value: "optimized", label: "Optimized" },
+  { value: "", label: "All open trips" },
+];
+
+/** Trips with fewer than two stops between origin and destination have nothing to reorder. */
+const intermediateStops = (trip: Trip) => Math.max(0, (trip.stops_count ?? 0) - 2);
+
+function RouteState({ trip }: { trip: Trip }) {
+  if (trip.route_optimized_at)
+    return (
+      <span className="flex flex-col items-start gap-0.5">
+        <Badge tone="green">Optimized</Badge>
+        <span className="text-xs text-ink-500">{formatDateTime(trip.route_optimized_at)}</span>
+      </span>
+    );
+  if (intermediateStops(trip) === 0) return <Badge tone="gray">Direct</Badge>;
+  return <Badge tone="amber">Manual order</Badge>;
+}
+
 export function RouteOptimizationView() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const tripId = Number(searchParams.get("trip")) || null;
+  const notify = useToast();
   const { canOperate } = usePermissions();
-  const routing = useQuery({ queryKey: ["routing", "status"], queryFn: routingService.status, staleTime: 300_000 });
-  const { data, isLoading, error, refetch } = useTrip(tripId);
-  const trip = data?.data;
-  const [order, setOrder] = useState<TripStop[]>([]);
+  const { configured, provider } = useRoutingStatus();
+  const { params, update, setPage } = useListParams({ route: "unoptimized", sort: "departure_at", per_page: 10 });
+  const query = { ...params, scope: "dispatch", route: params.route || undefined };
+  const list = useQuery({ queryKey: ["trips", "route-planning", query], queryFn: () => tripsService.list(query), placeholderData: keepPreviousData });
+  const [running, setRunning] = useState<number | null>(null);
 
-  const stops = useMemo(() => trip?.stops ?? [], [trip]);
-  useEffect(() => setOrder(stops.filter((s) => s.type === "stop")), [stops]);
-
-  const original = stops.filter((s) => s.type === "stop").map((s) => s.id).join(",");
-  const dirty = order.map((s) => s.id).join(",") !== original;
-  const editable = !!trip && !["completed", "cancelled"].includes(trip.status) && canOperate;
-  const configured = routing.data?.data.configured ?? false;
-
-  const save = useApiMutation(() => stopsService.reorder(tripId!, order.map((s) => s.id)), { invalidate: TRIP_KEYS });
-  // The provider returns every stop id in driving order; only the middle ones can move.
-  const optimize = useApiMutation(() => tripsService.optimize(tripId!), {
-    onSuccess: (result) => {
-      const ids = (result.data as { stop_ids?: number[] }).stop_ids ?? [];
-      const byId = new Map(stops.map((s) => [s.id, s]));
-      setOrder(ids.map((id) => byId.get(id)).filter((s): s is TripStop => s?.type === "stop"));
+  // Optimize and save in one go: ask the provider for the best order, then store it as the optimized route.
+  const optimize = useApiMutation(
+    async (trip: Trip) => {
+      const result = (await tripsService.optimize(trip.id)).data as { stop_ids: number[]; distance_km: number | null };
+      const detail = (await tripsService.get(trip.id)).data;
+      const middle = new Set((detail.stops ?? []).filter((s) => s.type === "stop").map((s) => s.id));
+      await stopsService.reorder(trip.id, result.stop_ids.filter((id) => middle.has(id)), { optimized: true, distance_km: result.distance_km });
+      return { trip, distance: result.distance_km };
     },
-    successMessage: "Optimized order loaded. Review it, then save the stop order.",
-  });
-
-  const move = (index: number, delta: number) =>
-    setOrder((list) => {
-      const next = [...list];
-      const [item] = next.splice(index, 1);
-      next.splice(index + delta, 0, item);
-      return next;
-    });
-
-  const pickup = stops.find((s) => s.type === "pickup");
-  const dropoff = stops.find((s) => s.type === "dropoff");
-  const planned = [pickup, ...order, dropoff].filter(Boolean) as TripStop[];
-  const preview = useRoutePreview(
-    planned.map((s) => ({ label: s.location_name, query: s.address || s.location_name })),
-    configured && !!trip,
+    {
+      invalidate: [...TRIP_KEYS, ["stops"]],
+      onSuccess: ({ trip, distance }) => notify(`${trip.trip_number} optimized${distance != null ? ` (${formatNumber(distance, 1)} km)` : ""}.`),
+    },
   );
+
+  const run = (trip: Trip) => {
+    setRunning(trip.id);
+    optimize.mutate(trip, { onSettled: () => setRunning(null) });
+  };
 
   return (
     <>
-      <PageHeader title="Route Optimization" description="Plan the stop sequence for a trip and save it to the itinerary." />
+      <PageHeader title="Route Optimization" description="Open trips and the state of their stop order. Optimize multi-stop routes or open a trip to plan it by hand." />
 
       <div
         className={`mb-6 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${configured ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}
@@ -78,135 +85,87 @@ export function RouteOptimizationView() {
       >
         <Info className="mt-0.5 h-4 w-4 shrink-0" />
         {configured ? (
-          <span>Routing provider “{routing.data?.data.provider}” is configured. Automatic optimisation is available.</span>
+          <span>Routing provider “{provider}” is configured. Optimize reorders the stops between origin and destination for the shortest drive and saves the driving distance.</span>
         ) : (
           <span>
-            <strong>No routing or map provider is configured.</strong> You can order stops manually and save the plan. Automatic optimisation, road distances and drive times are not
-            calculated until a provider is connected (set <code className="rounded bg-white/60 px-1">ROUTING_PROVIDER</code> on the API and bind a <code className="rounded bg-white/60 px-1">RoutingProvider</code> implementation).
+            <strong>No routing provider is configured.</strong> Open a trip to order its stops by hand. Automatic optimization needs <code className="rounded bg-white/60 px-1">ROUTING_PROVIDER</code> set on the API.
           </span>
         )}
       </div>
 
-      <Card className="mb-6">
-        <CardBody>
-          <TripPicker value={tripId} openOnly onChange={(id) => router.replace(id ? `/transportation/route-optimization?trip=${id}` : "/transportation/route-optimization")} />
-        </CardBody>
-      </Card>
-
-      {!tripId ? (
-        <Card>
-          <EmptyState title="Select a trip to plan" description="Open trips (scheduled, dispatched or in progress) are listed." icon={<MapPinned className="h-6 w-6" />} />
-        </Card>
-      ) : isLoading ? (
-        <LoadingState />
-      ) : error || !trip ? (
-        <ErrorState message={error?.message} onRetry={() => refetch()} />
-      ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-          <Card>
-            <CardHeader
-              title="Stop sequence"
-              icon={<MapPinned />}
-              description={`${trip.trip_number} · ${trip.origin} → ${trip.destination}`}
-              action={<StatusBadge status={trip.status} map={TRIP_STATUS} />}
-            />
-            <ol className="divide-y divide-ink-100">
-              {pickup && <FixedStop stop={pickup} />}
-              {order.map((stop, index) => (
-                <li key={stop.id} className="flex items-center gap-3 px-5 py-3">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-100 text-xs font-semibold text-sky-700">{index + 2}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-ink-900">{stop.location_name}</p>
-                    <p className="truncate text-xs text-ink-500">{stop.address ?? "No address"} · ETA {formatDateTime(stop.estimated_arrival_at)}</p>
-                  </div>
-                  {editable && (
-                    <div className="flex gap-1">
-                      <Button variant="secondary" size="icon" onClick={() => move(index, -1)} disabled={index === 0} aria-label={`Move ${stop.location_name} up`}>
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <Button variant="secondary" size="icon" onClick={() => move(index, 1)} disabled={index === order.length - 1} aria-label={`Move ${stop.location_name} down`}>
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
-                </li>
-              ))}
-              {order.length === 0 && <li className="px-5 py-4 text-sm text-ink-500">No intermediate stops. Add stops in the Itinerary page to plan a multi-drop route.</li>}
-              {dropoff && <FixedStop stop={dropoff} />}
-            </ol>
-            {editable && (
-              <div className="flex flex-wrap justify-end gap-2 border-t border-ink-100 px-5 py-3">
-                <Button variant="ghost" onClick={() => setOrder(stops.filter((s) => s.type === "stop"))} disabled={!dirty}>
-                  <Undo2 className="h-4 w-4" /> Reset
-                </Button>
-                <Button variant="secondary" onClick={() => optimize.mutate(undefined)} disabled={!configured} loading={optimize.isPending} title={configured ? undefined : "Requires a routing provider"}>
-                  <Sparkles className="h-4 w-4" /> Optimize automatically
-                </Button>
-                <Button onClick={() => save.mutate(undefined)} disabled={!dirty} loading={save.isPending}>
-                  <Save className="h-4 w-4" /> Save stop order
-                </Button>
-              </div>
-            )}
-          </Card>
-
-          <Card>
-            <CardHeader title="Route summary" icon={<Info />} />
-            <CardBody className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg bg-ink-50 p-3">
-                  <p className="text-xs text-ink-500">Stops</p>
-                  <p className="text-xl font-bold text-ink-900">{planned.length}</p>
-                </div>
-                <div className="rounded-lg bg-ink-50 p-3">
-                  <p className="text-xs text-ink-500">Planned distance</p>
-                  <p className="text-xl font-bold text-ink-900">{trip.distance_km ? `${formatNumber(trip.distance_km, 1)} km` : "—"}</p>
-                  {!trip.distance_km && <p className="text-xs text-ink-500">Not recorded</p>}
-                </div>
-                <div className="col-span-2 rounded-lg bg-ink-50 p-3">
-                  <p className="text-xs text-ink-500">Scheduled window</p>
-                  <p className="font-medium text-ink-900">
-                    {formatDateTime(trip.departure_at)} → {formatDateTime(trip.estimated_arrival_at)}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <p className="mb-2 font-medium text-ink-900">Planned sequence</p>
-                <p className="text-ink-600">{planned.map((s) => s.location_name).join(" → ")}</p>
-              </div>
-              {preview.data?.distance_km != null && preview.data.unresolved.length === 0 && (
-                <p className="text-ink-600">
-                  Driving route: <strong className="text-ink-900">{formatNumber(preview.data.distance_km, 1)} km</strong>, about{" "}
-                  <strong className="text-ink-900">{Math.floor((preview.data.duration_minutes ?? 0) / 60)}h {(preview.data.duration_minutes ?? 0) % 60}m</strong> (Mapbox).
-                </p>
-              )}
-              <RouteMap
-                configured={configured}
-                image={preview.data?.image}
-                loading={preview.isFetching}
-                error={preview.error?.message}
-                unresolved={preview.data?.unresolved}
-                emptyHint="Add addresses to the stops to draw the route."
-                className="aspect-[4/3] min-h-0"
-              />
-            </CardBody>
-          </Card>
+      <Card>
+        <Tabs className="px-4 pt-2" value={params.route as string} onChange={(route) => update({ route })} tabs={TABS} />
+        <div className="p-4">
+          <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search trip, origin, destination, driver, plate…" />
         </div>
-      )}
+        <DataTable
+          rows={list.data?.data}
+          loading={list.isFetching}
+          error={list.error}
+          onRetry={() => list.refetch()}
+          rowKey={(t) => t.id}
+          sort={params.sort as string}
+          onSortChange={(sort) => update({ sort })}
+          onRowClick={(t) => router.push(`${ROUTE_PLANNING_PATH}/${t.id}`)}
+          empty={
+            params.route === "unoptimized"
+              ? { title: "Every multi-stop route is planned", description: "Open trips with two or more stops between origin and destination appear here until their order is optimized." }
+              : { title: "No trips", description: "Open trips (scheduled, dispatched or in progress) appear here." }
+          }
+          columns={[
+            { key: "no", header: "Trip No.", sortKey: "trip_number", cell: (t) => <span className="font-semibold text-ink-900">{t.trip_number}</span> },
+            { key: "route", header: "Route", cell: (t) => <span className="line-clamp-2 max-w-56 whitespace-normal">{t.origin} → {t.destination}</span> },
+            {
+              key: "dep",
+              header: "Departure",
+              sortKey: "departure_at",
+              cell: (t) => (
+                <span className="whitespace-nowrap">
+                  <span className="block text-ink-900">{formatDate(t.departure_at)}</span>
+                  <span className="text-xs text-ink-500">{formatTime(t.departure_at)}</span>
+                </span>
+              ),
+            },
+            { key: "stops", header: "Stops", cell: (t) => <span>{t.stops_count ?? "—"}{intermediateStops(t) > 0 && <span className="text-xs text-ink-500"> ({intermediateStops(t)} between)</span>}</span> },
+            { key: "distance", header: "Distance", cell: (t) => (t.distance_km != null ? `${formatNumber(t.distance_km, 1)} km` : <span className="text-ink-400">—</span>) },
+            { key: "plan", header: "Stop Order", cell: (t) => <RouteState trip={t} /> },
+            {
+              key: "crew",
+              header: "Vehicle / Driver",
+              cell: (t) => (
+                <span className="text-xs">
+                  <span className="block font-medium text-ink-900">{t.vehicle?.plate_number}</span>
+                  <span className="text-ink-500">{t.driver?.full_name}</span>
+                </span>
+              ),
+            },
+            { key: "status", header: "Trip Status", sortKey: "status", cell: (t) => <StatusBadge status={t.status} map={TRIP_STATUS} /> },
+            {
+              key: "actions",
+              header: "Actions",
+              headerClassName: "sticky right-0 bg-ink-50 text-right",
+              className: "sticky right-0 bg-white text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
+              cell: (t) => {
+                const canOptimize = canOperate && configured && intermediateStops(t) >= 2;
+                return (
+                  // Clicks here must not open the row.
+                  <div className="inline-flex gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    {canOptimize && (
+                      <Button size="sm" variant={t.route_optimized_at ? "secondary" : "primary"} loading={running === t.id} disabled={running !== null && running !== t.id} onClick={() => run(t)}>
+                        <Sparkles className="h-3.5 w-3.5" /> {t.route_optimized_at ? "Re-optimize" : "Optimize"}
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => router.push(`${ROUTE_PLANNING_PATH}/${t.id}`)}>
+                      <MapPinned className="h-3.5 w-3.5" /> Plan
+                    </Button>
+                  </div>
+                );
+              },
+            },
+          ]}
+        />
+        <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="trips" />
+      </Card>
     </>
-  );
-}
-
-function FixedStop({ stop }: { stop: TripStop }) {
-  return (
-    <li className="flex items-center gap-3 bg-ink-50/60 px-5 py-3">
-      <StatusBadge status={stop.type} map={STOP_TYPE} dot={false} />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium text-ink-900">{stop.location_name}</p>
-        <p className="truncate text-xs text-ink-500">
-          {stop.address ?? "No address"} · {formatDateTime(stop.estimated_arrival_at)}
-        </p>
-      </div>
-      <span className="text-xs text-ink-400">Fixed</span>
-    </li>
   );
 }

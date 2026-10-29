@@ -242,6 +242,8 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
         departure_at: fromDateTimeLocal(`${v.trip_date}T${v.departure_time}`),
         estimated_arrival_at: fromDateTimeLocal(v.estimated_arrival_at),
         distance_km: v.distance_km,
+        // Defined below; read when the form is submitted.
+        route_optimized: optimized,
         notes: v.notes,
         stops: v.stops.map((s) =>
           nullable({ ...s, order_id: s.order_id ? Number(s.order_id) : "", estimated_arrival_at: s.estimated_arrival_at ? fromDateTimeLocal(s.estimated_arrival_at) : "" }),
