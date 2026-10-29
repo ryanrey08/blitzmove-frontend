@@ -124,9 +124,15 @@ export interface VehicleTrack {
 export const gpsService = {
   track: (vehicleId: number, limit = 200) => api.get<{ data: VehicleTrack; meta: { map_provider_configured: boolean } }>(`gps/vehicles/${vehicleId}/track`, { limit }),
   vehicles: () =>
-    api.get<{ data: Vehicle[]; meta: { map_provider_configured: boolean; has_gps_data: boolean; last_reported_at: string | null } }>(
-      "gps/vehicles",
-    ),
+    api.get<{
+      data: Vehicle[];
+      /** places: reverse-geocoded name of each vehicle's last position, keyed by vehicle id (map provider only). */
+      meta: { map_provider_configured: boolean; has_gps_data: boolean; last_reported_at: string | null; places: Record<string, string> };
+    }>("gps/vehicles"),
+  /** Fleet map; positions come from the database, the client only picks pin labels and colors. */
+  map: (body: { markers: { vehicle_id: number; label: string; color: string }[]; style: "streets" | "satellite"; traffic: boolean }) =>
+    api.post<{ data: { image: string | null; plotted: number } }>("gps/map", body),
+  events: (limit = 15) => api.get<{ data: { at: string; type: "dispatched" | "departed" | "arrived" | "skipped" | "completed"; text: string }[] }>("gps/events", { limit }),
 };
 
 export interface RoutePreview {
