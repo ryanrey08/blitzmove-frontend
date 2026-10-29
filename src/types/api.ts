@@ -7,6 +7,9 @@ export type TripStatus = "scheduled" | "dispatched" | "in_progress" | "completed
 export type VehicleStatus = "available" | "on_trip" | "maintenance" | "inactive";
 export type DriverStatus = "available" | "on_trip" | "on_leave" | "suspended" | "inactive";
 export type StopType = "pickup" | "stop" | "dropoff";
+export type StopActivity = "pickup" | "delivery";
+export type TripType = "delivery" | "pickup" | "transfer" | "return";
+export type TripPriority = "low" | "normal" | "high" | "urgent";
 export type StopStatus = "pending" | "arrived" | "completed" | "skipped";
 export type VehicleType =
   | "closed_van"
@@ -135,6 +138,7 @@ export interface TripStop {
   trip_id: number;
   sequence: number;
   type: StopType;
+  activity: StopActivity | null;
   location_name: string;
   address: string | null;
   order_id: number | null;
@@ -158,12 +162,17 @@ export interface DispatchAssignment {
 export interface Trip {
   id: number;
   trip_number: string;
+  reference_no: string | null;
+  trip_type: TripType;
+  priority: TripPriority;
   order_id: number | null;
   vehicle_id: number;
   driver_id: number;
+  co_driver_id: number | null;
   order?: Order | null;
   vehicle?: Vehicle;
   driver?: Driver;
+  co_driver?: Driver | null;
   origin: string;
   destination: string;
   departure_at: string;

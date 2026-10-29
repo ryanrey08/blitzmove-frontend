@@ -68,6 +68,7 @@ export const tripsService = {
       estimated_arrival_at,
       exclude_trip_id,
     }),
+  nextNumber: () => api.get<{ data: { trip_number: string } }>("trips/next-number"),
   reassign: (id: number, data: { vehicle_id: number; driver_id: number; reason?: string }) =>
     api.post<Resource<Trip>>(`trips/${id}/reassign`, data),
   changeStatus: (id: number, status: TripStatus, notes?: string) => api.patch<Resource<Trip>>(`trips/${id}/status`, { status, notes }),

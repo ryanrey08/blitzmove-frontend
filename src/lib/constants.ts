@@ -6,8 +6,11 @@ import type {
   LicenseType,
   OrderStatus,
   StopStatus,
+  StopActivity,
   StopType,
+  TripPriority,
   TripStatus,
+  TripType,
   VehicleDocumentType,
   VehicleStatus,
   VehicleType,
@@ -69,6 +72,20 @@ export const STOP_TYPE: Record<StopType, { label: string; tone: Tone }> = {
   stop: { label: "Stop", tone: "blue" },
   dropoff: { label: "End", tone: "red" },
 };
+
+export const STOP_ACTIVITY: Record<StopActivity, { label: string; tone: Tone }> = {
+  pickup: { label: "Pickup", tone: "blue" },
+  delivery: { label: "Delivery", tone: "green" },
+};
+
+export const TRIP_PRIORITY: Record<TripPriority, { label: string; tone: Tone }> = {
+  low: { label: "Low", tone: "gray" },
+  normal: { label: "Normal", tone: "blue" },
+  high: { label: "High", tone: "orange" },
+  urgent: { label: "Urgent", tone: "red" },
+};
+
+export const TRIP_TYPES = options<TripType>({ delivery: "Delivery", pickup: "Pickup", transfer: "Transfer", return: "Return" });
 
 export const EXPIRY_STATUS: Record<ExpiryStatus, { label: string; tone: Tone }> = {
   valid: { label: "Valid", tone: "green" },

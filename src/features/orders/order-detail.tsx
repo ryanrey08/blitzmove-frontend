@@ -62,7 +62,7 @@ export function OrderDetail({ id }: { id: number }) {
               <Pencil className="h-4 w-4" /> Edit
             </Button>
             {["pending", "scheduled"].includes(order.status) && (
-              <Link href={`/transportation/trip-scheduling?order=${order.id}`}>
+              <Link href={`/transportation/trip-scheduling/create?order=${order.id}`}>
                 <Button>
                   <Route className="h-4 w-4" /> Schedule trip
                 </Button>
