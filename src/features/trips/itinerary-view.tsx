@@ -2,29 +2,41 @@
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { addDays, endOfDay, format, startOfDay } from "date-fns";
-import { CheckCircle2, Eye, MapPin, SkipForward } from "lucide-react";
+import { CheckCircle2, Download, Eye, Flag, Hourglass, MapPin, MoreVertical, SkipForward, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
+import { Dropdown } from "@/components/ui/dropdown";
 import { Input, Select } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
-import { Tabs } from "@/components/ui/tabs";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
+import { useToast } from "@/components/ui/toast";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { usePermissions } from "@/hooks/use-current-user";
 import { useListParams } from "@/hooks/use-list-params";
 import { STOP_STATUS, STOP_TYPE, TRIP_STATUS, statusOptions } from "@/lib/constants";
-import { cn, formatDate, formatTime } from "@/lib/utils";
+import { exportCsv, fetchAllPages } from "@/lib/export";
+import { formatDate, formatDateTime, formatTime } from "@/lib/utils";
 import { stopsService } from "@/services/resources";
 import type { StopStatus, TripStop } from "@/types/api";
 import { ITINERARY_PATH } from "./itinerary-trip-view";
 import { TRIP_KEYS } from "./use-trip";
 
 type Range = "today" | "tomorrow" | "week" | "date";
+
+const STOP_CARDS = [
+  { key: "", label: "Total Stops", icon: MapPin, tone: "bg-brand-50 text-brand-600" },
+  { key: "pending", label: "Pending", icon: Hourglass, tone: "bg-amber-50 text-amber-600" },
+  { key: "arrived", label: "Arrived", icon: Flag, tone: "bg-sky-50 text-sky-600" },
+  { key: "completed", label: "Completed", icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-600" },
+  { key: "skipped", label: "Skipped", icon: SkipForward, tone: "bg-ink-100 text-ink-600" },
+];
 const RANGES: { value: Range; label: string }[] = [
   { value: "today", label: "Today" },
   { value: "tomorrow", label: "Tomorrow" },
@@ -56,11 +68,46 @@ function progressActions(stop: TripStop): { status: StopStatus; label: string }[
 export function ItineraryView() {
   const router = useRouter();
   const { canOperate } = usePermissions();
+  const notify = useToast();
   const { params, update, setPage } = useListParams({ range: "today", date: format(new Date(), "yyyy-MM-dd"), status: "", trip_status: "", per_page: 15 });
   const range = params.range as Range;
   const { from, to } = bounds(range, params.date as string);
   const query = { page: params.page, per_page: params.per_page, search: params.search, status: params.status, trip_status: params.trip_status, sort: params.sort, from, to };
   const list = useQuery({ queryKey: ["stops", "board", query], queryFn: () => stopsService.board(query), placeholderData: keepPreviousData });
+
+  const counts = list.data?.counts;
+  const periodLabel = range === "week" ? `${formatDate(from, "MMM d")} – ${formatDate(to, "MMM d, yyyy")}` : formatDate(from, "EEE, MMM d, yyyy");
+  const [exporting, setExporting] = useState(false);
+  const runExport = async () => {
+    setExporting(true);
+    try {
+      const stops = await fetchAllPages(stopsService.board, { ...query, page: undefined, per_page: undefined });
+      exportCsv(
+        "itinerary",
+        ["ETA", "Stop", "Type", "Location", "Address", "Customer", "Order", "Trip", "Trip Status", "Vehicle", "Driver", "Stop Status", "Actual Arrival"],
+        stops.map((s) => [
+          formatDateTime(s.estimated_arrival_at ?? s.trip?.departure_at),
+          s.sequence,
+          STOP_TYPE[s.type].label,
+          s.location_name,
+          s.address,
+          s.order?.customer_name,
+          s.order?.order_number,
+          s.trip?.trip_number,
+          s.trip ? TRIP_STATUS[s.trip.status].label : "",
+          s.trip?.vehicle?.plate_number,
+          s.trip?.driver?.full_name,
+          STOP_STATUS[s.status].label,
+          s.actual_arrival_at ? formatDateTime(s.actual_arrival_at) : "",
+        ]),
+      );
+      notify(`Exported ${stops.length} stop${stops.length === 1 ? "" : "s"}.`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Export failed.", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const progress = useApiMutation(({ stop, status }: { stop: TripStop; status: StopStatus }) => stopsService.update(stop.trip_id, stop.id, { status }), {
     invalidate: [["stops"], ...TRIP_KEYS],
@@ -68,22 +115,43 @@ export function ItineraryView() {
 
   return (
     <>
-      <PageHeader title="Itinerary" description="Every stop across trips, in time order, with arrival progress." />
-      <Card>
-        <Tabs className="px-4 pt-2" value={range} onChange={(value) => update({ range: value })} tabs={RANGES} />
-        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
-          <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search stop, address, trip, order, customer, driver…" className="sm:col-span-2 lg:col-span-1" />
-          {range === "date" ? (
-            <Input type="date" value={params.date as string} onChange={(e) => update({ date: e.target.value })} aria-label="Stops on date" />
-          ) : (
-            <p className="flex items-center text-sm text-ink-500">
-              {range === "week" ? `${formatDate(from)} – ${formatDate(to)}` : formatDate(from, "EEEE, MMM d, yyyy")}
-            </p>
-          )}
-          <Select value={params.status as string} onChange={(e) => update({ status: e.target.value })} options={statusOptions(STOP_STATUS)} placeholder="All stop statuses" aria-label="Filter by stop status" />
-          <Select value={params.trip_status as string} onChange={(e) => update({ trip_status: e.target.value })} options={statusOptions(TRIP_STATUS)} placeholder="All trip statuses" aria-label="Filter by trip status" />
-        </div>
+      <PageHeader
+        title="Itinerary"
+        description="Every stop across trips, in time order, with arrival progress."
+        actions={
+          <Button variant="secondary" size="lg" onClick={runExport} loading={exporting}>
+            <Download className="h-4 w-4" /> Export
+          </Button>
+        }
+      />
 
+      <StatFilterCards
+        active={params.status as string}
+        onSelect={(status) => update({ status })}
+        loading={!list.data}
+        cards={STOP_CARDS.map((card) => ({
+          ...card,
+          count: counts ? (card.key ? (counts[card.key as StopStatus] ?? 0) : Object.values(counts).reduce((a, b) => a + b, 0)) : undefined,
+          hint: periodLabel,
+        }))}
+      />
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_repeat(2,minmax(0,1fr))_minmax(0,1.6fr)_auto]">
+        <Select value={range} onChange={(e) => update({ range: e.target.value })} options={RANGES} aria-label="Period" />
+        {range === "date" ? (
+          <Input type="date" value={params.date as string} onChange={(e) => update({ date: e.target.value })} aria-label="Stops on date" />
+        ) : (
+          <p className="input flex items-center bg-ink-50 text-ink-600">{periodLabel}</p>
+        )}
+        <Select value={params.status as string} onChange={(e) => update({ status: e.target.value })} options={statusOptions(STOP_STATUS)} placeholder="All Stop Status" aria-label="Filter by stop status" />
+        <Select value={params.trip_status as string} onChange={(e) => update({ trip_status: e.target.value })} options={statusOptions(TRIP_STATUS)} placeholder="All Trip Status" aria-label="Filter by trip status" />
+        <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search stop, trip, order, customer…" className="sm:col-span-2 lg:col-span-1" />
+        <Button variant="secondary" onClick={() => update({ status: "", trip_status: "", search: "" })} disabled={!params.status && !params.trip_status && !params.search} className="h-10">
+          <X className="h-4 w-4" /> Clear
+        </Button>
+      </div>
+
+      <Card>
         <DataTable
           rows={list.data?.data}
           loading={list.isFetching}
@@ -151,7 +219,7 @@ export function ItineraryView() {
               cell: (s) => (
                 <span className="flex flex-col items-start gap-1">
                   <span className="font-semibold text-ink-900">{s.trip?.trip_number}</span>
-                  {s.trip && <StatusBadge status={s.trip.status} map={TRIP_STATUS} />}
+                  {s.trip && <StatusBadge status={s.trip.status} map={TRIP_STATUS} dot={false} />}
                 </span>
               ),
             },
@@ -170,7 +238,7 @@ export function ItineraryView() {
               header: "Stop Status",
               cell: (s) => (
                 <span className="flex flex-col items-start gap-0.5">
-                  <StatusBadge status={s.status} map={STOP_STATUS} />
+                  <StatusBadge status={s.status} map={STOP_STATUS} dot={false} />
                   {s.actual_arrival_at && <span className="text-xs text-ink-500">at {formatTime(s.actual_arrival_at)}</span>}
                 </span>
               ),
@@ -178,39 +246,37 @@ export function ItineraryView() {
             {
               key: "actions",
               header: "Actions",
-              headerClassName: "sticky right-0 bg-ink-50 text-right",
-              className: "sticky right-0 bg-white text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
+              // Pinned so the menu stays reachable when the table scrolls sideways.
+              headerClassName: "sticky right-0 bg-ink-50 text-center",
+              className: "sticky right-0 bg-white text-center shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
               cell: (s) => {
                 const actions = canOperate ? progressActions(s) : [];
                 return (
                   // Clicks here must not open the row.
-                  <div className="inline-flex flex-wrap justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                    {actions.map((a) => (
-                      <Button
-                        key={a.status}
-                        size="sm"
-                        variant={a.status === "skipped" ? "ghost" : a.status === "completed" ? "primary" : "secondary"}
-                        loading={progress.isPending && progress.variables?.stop.id === s.id && progress.variables.status === a.status}
-                        onClick={() => progress.mutate({ stop: s, status: a.status })}
-                      >
-                        {a.status === "completed" && <CheckCircle2 className="h-3.5 w-3.5" />}
-                        {a.status === "skipped" && <SkipForward className="h-3.5 w-3.5" />}
-                        {a.status === "arrived" && <MapPin className="h-3.5 w-3.5" />}
-                        {a.label}
-                      </Button>
-                    ))}
-                    {actions.length === 0 && (
-                      <Button size="sm" variant="ghost" onClick={() => router.push(`${ITINERARY_PATH}/${s.trip_id}`)} className={cn(s.trip?.status === "in_progress" && "text-ink-500")}>
-                        <Eye className="h-3.5 w-3.5" /> View
-                      </Button>
-                    )}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Dropdown
+                      trigger={({ toggle }) => (
+                        <button onClick={toggle} className="rounded-md p-1.5 text-ink-600 hover:bg-ink-100 hover:text-ink-900" aria-label={`Actions for stop ${s.location_name}`}>
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                      )}
+                      items={[
+                        ...actions.map((a) => ({
+                          label: a.status === "arrived" ? "Mark arrived" : a.status === "skipped" ? "Skip stop" : "Mark completed",
+                          icon: a.status === "completed" ? <CheckCircle2 /> : a.status === "skipped" ? <SkipForward /> : <MapPin />,
+                          onSelect: () => progress.mutate({ stop: s, status: a.status }),
+                          disabled: progress.isPending,
+                        })),
+                        { label: "View itinerary", icon: <Eye />, onSelect: () => router.push(`${ITINERARY_PATH}/${s.trip_id}`) },
+                      ]}
+                    />
                   </div>
                 );
               },
             },
           ]}
         />
-        <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="stops" />
+        <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="stops" showEdges />
       </Card>
       <p className="mt-3 text-xs text-ink-500">Stop progress (Arrived, Completed, Skip) can be recorded only while the trip is in progress. Start trips from Dispatch Management.</p>
     </>

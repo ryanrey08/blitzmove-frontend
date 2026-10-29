@@ -1,25 +1,29 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Eye, MoreVertical, Send } from "lucide-react";
+import { Download, Eye, MoreVertical, Send, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { Dropdown } from "@/components/ui/dropdown";
+import { Select } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
-import { Tabs } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/toast";
 import { usePermissions } from "@/hooks/use-current-user";
 import { useListParams } from "@/hooks/use-list-params";
 import { TRIP_STATUS } from "@/lib/constants";
-import { formatDate, formatTime } from "@/lib/utils";
+import { exportCsv, fetchAllPages } from "@/lib/export";
+import { formatDate, formatDateTime, formatTime } from "@/lib/utils";
 import { tripsService } from "@/services/resources";
 import type { Trip } from "@/types/api";
+import { TripStatusCards } from "./trip-status-cards";
 import { DISPATCH_PATH, TRANSITIONS, availableTransitions, dispatchPath, useTripTransition } from "./trip-status-actions";
 
 /** Pre-dispatch checks mirroring TripService::dispatch; optional items don't block. */
@@ -60,12 +64,35 @@ export function DispatchView() {
   const searchParams = useSearchParams();
   const { canOperate } = usePermissions();
   const initialStatus = searchParams.get("status") ?? "";
-  const { params, update, setPage } = useListParams({ status: OPEN.includes(initialStatus) || ["completed", "cancelled"].includes(initialStatus) ? initialStatus : "", sort: "departure_at", per_page: 10 });
+  const notify = useToast();
+  const { params, update, setPage } = useListParams({
+    status: OPEN.includes(initialStatus) || ["completed", "cancelled"].includes(initialStatus) ? initialStatus : "",
+    sort: "departure_at",
+    per_page: 10,
+    from: "",
+    to: "",
+  });
   // "All open" uses the API's dispatch scope; closed tabs filter by status alone.
   const query = { ...params, scope: params.status ? undefined : "dispatch" };
   const list = useQuery({ queryKey: ["trips", "dispatch-board", query], queryFn: () => tripsService.list(query), placeholderData: keepPreviousData });
-  const summary = useQuery({ queryKey: ["trips", "summary"], queryFn: tripsService.summary });
-  const count = (s: string) => summary.data?.data.find((x) => x.status === s)?.count;
+  const filtered = ["status", "from", "to", "search"].some((k) => params[k]);
+  const [exporting, setExporting] = useState(false);
+  const runExport = async () => {
+    setExporting(true);
+    try {
+      const trips = await fetchAllPages(tripsService.list, { ...query, page: undefined, per_page: undefined });
+      exportCsv(
+        "dispatch",
+        ["Trip No.", "Origin", "Destination", "Departure", "Vehicle", "Driver", "Order", "Dispatched", "Dispatched By", "Status"],
+        trips.map((t) => [t.trip_number, t.origin, t.destination, formatDateTime(t.departure_at), t.vehicle?.plate_number, t.driver?.full_name, t.order?.order_number, t.dispatched_at ? formatDateTime(t.dispatched_at) : "", t.dispatched_by?.name, TRIP_STATUS[t.status].label]),
+      );
+      notify(`Exported ${trips.length} trip${trips.length === 1 ? "" : "s"}.`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Export failed.", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
   const transition = useTripTransition();
 
   // Old links (`/transportation/dispatch?trip=12`) now open the trip's dispatch page.
@@ -76,17 +103,28 @@ export function DispatchView() {
 
   return (
     <>
-      <PageHeader title="Dispatch Management" description="Review scheduled and active trips, dispatch them to drivers, and track their progress." />
+      <PageHeader
+        title="Dispatch Management"
+        description="Review scheduled and active trips, dispatch them to drivers, and track their progress."
+        actions={
+          <Button variant="secondary" size="lg" onClick={runExport} loading={exporting}>
+            <Download className="h-4 w-4" /> Export
+          </Button>
+        }
+      />
+
+      <TripStatusCards active={params.status as string} onSelect={(status) => update({ status })} statuses={OPEN} />
+
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.6fr)_auto]">
+        <DateRangeFilter from={params.from as string} to={params.to as string} onChange={(from, to) => update({ from, to })} emptyLabel="All departure dates" />
+        <Select value={params.status as string} onChange={(e) => update({ status: e.target.value })} options={TABS.filter((t) => t.value)} placeholder="All open trips" aria-label="Filter by status" />
+        <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search trip, order, driver, plate, destination…" />
+        <Button variant="secondary" onClick={() => update({ status: "", from: "", to: "", search: "" })} disabled={!filtered} className="h-10">
+          <X className="h-4 w-4" /> Clear
+        </Button>
+      </div>
+
       <Card>
-        <Tabs
-          className="px-4 pt-2"
-          value={params.status as string}
-          onChange={(status) => update({ status })}
-          tabs={TABS.map((t) => ({ ...t, count: t.value ? count(t.value) : undefined }))}
-        />
-        <div className="p-4">
-          <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search trip, order, driver, plate, destination…" />
-        </div>
         <DataTable
           rows={list.data?.data}
           loading={list.isFetching}
@@ -116,42 +154,29 @@ export function DispatchView() {
                 ),
             },
             { key: "dispatched", header: "Dispatched", cell: (t) => <When value={t.dispatched_at} /> },
-            { key: "status", header: "Status", sortKey: "status", cell: (t) => <StatusBadge status={t.status} map={TRIP_STATUS} /> },
+            { key: "status", header: "Status", sortKey: "status", cell: (t) => <StatusBadge status={t.status} map={TRIP_STATUS} dot={false} /> },
             {
               key: "actions",
               header: "Actions",
-              // Pinned so the actions stay reachable when the table scrolls sideways.
-              headerClassName: "sticky right-0 bg-ink-50 text-right",
-              className: "sticky right-0 bg-white text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
+              // Pinned so the menu stays reachable when the table scrolls sideways.
+              headerClassName: "sticky right-0 bg-ink-50 text-center",
+              className: "sticky right-0 bg-white text-center shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
               cell: (t) => {
-                const transitions = canOperate ? availableTransitions(t) : [];
-                const [primary, ...more] = transitions.filter((k) => k !== "cancelled" && k !== "recall");
-                const secondary = [...more, ...transitions.filter((k) => k === "recall" || k === "cancelled")];
+                // Only moves the trip's status allows (from the API's allowed_transitions).
+                const moves = canOperate ? availableTransitions(t) : [];
                 return (
                   // Stop clicks here from reaching the row's navigation.
-                  <div className="inline-flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
-                    {canOperate && t.status === "scheduled" ? (
-                      <Button size="sm" onClick={() => router.push(dispatchPath(t))}>
-                        <Send className="h-3.5 w-3.5" /> Dispatch
-                      </Button>
-                    ) : primary ? (
-                      <Button size="sm" variant="secondary" onClick={() => transition.request(t, primary)} className="[&>svg]:h-3.5 [&>svg]:w-3.5">
-                        {TRANSITIONS[primary].icon} {TRANSITIONS[primary].label}
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="ghost" onClick={() => router.push(dispatchPath(t))}>
-                        <Eye className="h-3.5 w-3.5" /> View Trip
-                      </Button>
-                    )}
+                  <div onClick={(e) => e.stopPropagation()}>
                     <Dropdown
                       trigger={({ toggle }) => (
-                        <button onClick={toggle} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-800" aria-label={`More actions for ${t.trip_number}`}>
+                        <button onClick={toggle} className="rounded-md p-1.5 text-ink-600 hover:bg-ink-100 hover:text-ink-900" aria-label={`Actions for ${t.trip_number}`}>
                           <MoreVertical className="h-4 w-4" />
                         </button>
                       )}
                       items={[
+                        ...(canOperate && t.status === "scheduled" ? [{ label: "Dispatch", icon: <Send />, onSelect: () => router.push(dispatchPath(t)) }] : []),
+                        ...moves.map((key) => ({ label: TRANSITIONS[key].label, icon: TRANSITIONS[key].icon, danger: key === "cancelled", onSelect: () => transition.request(t, key) })),
                         { label: "View Trip", icon: <Eye />, onSelect: () => router.push(dispatchPath(t)) },
-                        ...secondary.map((key) => ({ label: TRANSITIONS[key].label, icon: TRANSITIONS[key].icon, danger: key === "cancelled", onSelect: () => transition.request(t, key) })),
                       ]}
                     />
                   </div>
@@ -160,7 +185,7 @@ export function DispatchView() {
             },
           ]}
         />
-        <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="trips" />
+        <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="trips" showEdges />
       </Card>
       {transition.dialog}
     </>

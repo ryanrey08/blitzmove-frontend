@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Eye, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Download, Eye, MoreVertical, Pencil, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -10,17 +10,22 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
-import { Input, Select } from "@/components/ui/form";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
+import { Dropdown } from "@/components/ui/dropdown";
+import { Select } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { useToast } from "@/components/ui/toast";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { usePermissions } from "@/hooks/use-current-user";
 import { useListParams } from "@/hooks/use-list-params";
 import { TRIP_PRIORITY, TRIP_STATUS, TRIP_TYPES, labelOf, statusOptions } from "@/lib/constants";
-import { cn, formatDate, formatTime } from "@/lib/utils";
+import { exportCsv, fetchAllPages } from "@/lib/export";
+import { cn, formatDate, formatDateTime, formatTime } from "@/lib/utils";
 import { driversService, tripsService, vehiclesService } from "@/services/resources";
 import type { Trip } from "@/types/api";
+import { TripStatusCards } from "./trip-status-cards";
 import { TRIP_KEYS } from "./use-trip";
 
 export const TRIPS_PATH = "/transportation/trip-scheduling";
@@ -40,29 +45,10 @@ function When({ value }: { value: string | null }) {
   );
 }
 
-function IconAction({ label, onClick, href, danger, disabled, children }: { label: string; onClick?: () => void; href?: string; danger?: boolean; disabled?: boolean; children: React.ReactNode }) {
-  const className = cn(
-    "inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-500 transition [&>svg]:h-4 [&>svg]:w-4",
-    danger ? "hover:bg-brand-50 hover:text-brand-700" : "hover:bg-ink-100 hover:text-ink-900",
-    disabled && "pointer-events-none opacity-40",
-  );
-  if (href && !disabled) {
-    return (
-      <Link href={href} className={className} aria-label={label} title={label}>
-        {children}
-      </Link>
-    );
-  }
-  return (
-    <button type="button" onClick={onClick} disabled={disabled} className={className} aria-label={label} title={label}>
-      {children}
-    </button>
-  );
-}
-
 export function TripScheduleView() {
   const router = useRouter();
   const { canOperate } = usePermissions();
+  const notify = useToast();
   const { params, update, setPage } = useListParams({ sort: "-departure_at", status: "", vehicle_id: "", driver_id: "", from: "", to: "" });
   const [deleting, setDeleting] = useState<Trip | null>(null);
 
@@ -71,6 +57,24 @@ export function TripScheduleView() {
   const drivers = useQuery({ queryKey: ["drivers", "options"], queryFn: () => driversService.list({ per_page: 100, sort: "full_name" }), staleTime: 60_000 });
 
   const remove = useApiMutation(() => tripsService.remove(deleting!.id), { invalidate: TRIP_KEYS, onSuccess: () => setDeleting(null) });
+
+  const [exporting, setExporting] = useState(false);
+  const runExport = async () => {
+    setExporting(true);
+    try {
+      const trips = await fetchAllPages(tripsService.list, { ...params, page: undefined, per_page: undefined });
+      exportCsv(
+        "trips",
+        ["Trip ID", "Reference", "Type", "Priority", "Order", "Vehicle", "Driver", "Origin", "Destination", "Departure", "Arrival", "Distance (km)", "Status"],
+        trips.map((t) => [t.trip_number, t.reference_no, t.trip_type, t.priority, t.order?.order_number, t.vehicle?.plate_number, t.driver?.full_name, t.origin, t.destination, formatDateTime(t.departure_at), formatDateTime(t.estimated_arrival_at), t.distance_km, TRIP_STATUS[t.status].label]),
+      );
+      notify(`Exported ${trips.length} trip${trips.length === 1 ? "" : "s"}.`);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Export failed.", "error");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const filtered = ["status", "vehicle_id", "driver_id", "from", "to", "search"].some((k) => params[k]);
   const clearFilters = () => update({ status: "", vehicle_id: "", driver_id: "", from: "", to: "", search: "" });
@@ -81,45 +85,45 @@ export function TripScheduleView() {
         title="Trip Scheduling"
         description="Plan trips, assign vehicles and drivers, and manage the schedule."
         actions={
-          canOperate && (
-            <Button size="lg" onClick={() => router.push(`${TRIPS_PATH}/create`)}>
-              <Plus className="h-5 w-5" /> Add New Trip
+          <>
+            <Button variant="secondary" size="lg" onClick={runExport} loading={exporting}>
+              <Download className="h-4 w-4" /> Export
             </Button>
-          )
+            {canOperate && (
+              <Button size="lg" onClick={() => router.push(`${TRIPS_PATH}/create`)} className="min-w-40">
+                <Plus className="h-5 w-5" /> Add New Trip
+              </Button>
+            )}
+          </>
         }
       />
 
-      <Card>
-        <div className="flex flex-col gap-3 border-b border-ink-100 p-4">
-          <SearchInput
-            value={(params.search as string) ?? ""}
-            onChange={(search) => update({ search })}
-            placeholder="Search trip no., reference, order, origin, destination, driver, plate…"
-          />
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-[repeat(5,minmax(0,1fr))_auto]">
-            <Select value={params.status as string} onChange={(e) => update({ status: e.target.value })} options={statusOptions(TRIP_STATUS)} placeholder="All statuses" aria-label="Filter by status" />
-            <Input type="date" value={params.from as string} max={(params.to as string) || undefined} onChange={(e) => update({ from: e.target.value })} aria-label="Departure from" title="Departure from" />
-            <Input type="date" value={params.to as string} min={(params.from as string) || undefined} onChange={(e) => update({ to: e.target.value })} aria-label="Departure to" title="Departure to" />
-            <Select
-              value={params.vehicle_id as string}
-              onChange={(e) => update({ vehicle_id: e.target.value })}
-              options={(vehicles.data?.data ?? []).map((v) => ({ value: String(v.id), label: v.plate_number }))}
-              placeholder="All vehicles"
-              aria-label="Filter by vehicle"
-            />
-            <Select
-              value={params.driver_id as string}
-              onChange={(e) => update({ driver_id: e.target.value })}
-              options={(drivers.data?.data ?? []).map((d) => ({ value: String(d.id), label: d.full_name }))}
-              placeholder="All drivers"
-              aria-label="Filter by driver"
-            />
-            <Button variant="ghost" onClick={clearFilters} disabled={!filtered}>
-              <X className="h-4 w-4" /> Clear
-            </Button>
-          </div>
-        </div>
+      <TripStatusCards active={params.status as string} onSelect={(status) => update({ status })} />
 
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_minmax(0,1.4fr)_auto]">
+        <DateRangeFilter from={params.from as string} to={params.to as string} onChange={(from, to) => update({ from, to })} emptyLabel="All departure dates" />
+        <Select value={params.status as string} onChange={(e) => update({ status: e.target.value })} options={statusOptions(TRIP_STATUS)} placeholder="All Status" aria-label="Filter by status" />
+        <Select
+          value={params.vehicle_id as string}
+          onChange={(e) => update({ vehicle_id: e.target.value })}
+          options={(vehicles.data?.data ?? []).map((v) => ({ value: String(v.id), label: v.plate_number }))}
+          placeholder="All Vehicles"
+          aria-label="Filter by vehicle"
+        />
+        <Select
+          value={params.driver_id as string}
+          onChange={(e) => update({ driver_id: e.target.value })}
+          options={(drivers.data?.data ?? []).map((d) => ({ value: String(d.id), label: d.full_name }))}
+          placeholder="All Drivers"
+          aria-label="Filter by driver"
+        />
+        <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search trip no., reference, order…" className="sm:col-span-2 lg:col-span-1" />
+        <Button variant="secondary" onClick={clearFilters} disabled={!filtered} className="h-10">
+          <X className="h-4 w-4" /> Clear
+        </Button>
+      </div>
+
+      <Card>
         <DataTable
           rows={list.data?.data}
           loading={list.isFetching}
@@ -171,38 +175,41 @@ export function TripScheduleView() {
             },
             { key: "vehicle", header: "Vehicle", cell: (t) => (t.vehicle ? <span className="font-medium text-ink-900">{t.vehicle.plate_number}</span> : <span className="text-ink-400">—</span>) },
             { key: "driver", header: "Driver", cell: (t) => t.driver?.full_name ?? <span className="text-ink-400">—</span> },
-            { key: "origin", header: "Origin", cell: (t) => <span className="line-clamp-2 max-w-40 whitespace-normal">{t.origin}</span> },
-            { key: "destination", header: "Destination", cell: (t) => <span className="line-clamp-2 max-w-40 whitespace-normal">{t.destination}</span> },
+            { key: "origin", header: "Origin", cell: (t) => <span className="line-clamp-2 max-w-32 whitespace-normal">{t.origin}</span> },
+            { key: "destination", header: "Destination", cell: (t) => <span className="line-clamp-2 max-w-32 whitespace-normal">{t.destination}</span> },
             { key: "dep", header: "Departure", sortKey: "departure_at", cell: (t) => <When value={t.departure_at} /> },
             { key: "arr", header: "Arrival", sortKey: "estimated_arrival_at", cell: (t) => <When value={t.actual_arrival_at ?? t.estimated_arrival_at} /> },
-            { key: "status", header: "Status", sortKey: "status", cell: (t) => <StatusBadge status={t.status} map={TRIP_STATUS} /> },
+            { key: "status", header: "Status", sortKey: "status", cell: (t) => <StatusBadge status={t.status} map={TRIP_STATUS} dot={false} /> },
             {
               key: "actions",
               header: "Actions",
-              // Pinned so the actions stay reachable when the table scrolls sideways.
-              headerClassName: "sticky right-0 bg-ink-50 text-right",
-              className: "sticky right-0 bg-white text-right shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
+              // Pinned so the menu stays reachable when the table scrolls sideways.
+              headerClassName: "sticky right-0 bg-ink-50 text-center",
+              className: "sticky right-0 bg-white text-center shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
               cell: (t) => (
-                <div className="inline-flex gap-0.5" onClick={(e) => e.stopPropagation()}>
-                  <IconAction label={`View ${t.trip_number}`} href={`${TRIPS_PATH}/${t.id}`}>
-                    <Eye />
-                  </IconAction>
-                  {canOperate && (
-                    <>
-                      <IconAction label={isEditable(t) ? `Edit ${t.trip_number}` : "Only scheduled trips can be edited"} href={`${TRIPS_PATH}/${t.id}/edit`} disabled={!isEditable(t)}>
-                        <Pencil />
-                      </IconAction>
-                      <IconAction label={isDeletable(t) ? `Delete ${t.trip_number}` : "In-progress trips cannot be deleted"} onClick={() => setDeleting(t)} disabled={!isDeletable(t)} danger>
-                        <Trash2 />
-                      </IconAction>
-                    </>
-                  )}
+                <div onClick={(e) => e.stopPropagation()}>
+                  <Dropdown
+                    trigger={({ toggle }) => (
+                      <button onClick={toggle} className="rounded-md p-1.5 text-ink-600 hover:bg-ink-100 hover:text-ink-900" aria-label={`Actions for ${t.trip_number}`}>
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    )}
+                    items={[
+                      { label: "View", icon: <Eye />, onSelect: () => router.push(`${TRIPS_PATH}/${t.id}`) },
+                      ...(canOperate
+                        ? [
+                            { label: isEditable(t) ? "Edit" : "Edit (scheduled trips only)", icon: <Pencil />, onSelect: () => router.push(`${TRIPS_PATH}/${t.id}/edit`), disabled: !isEditable(t) },
+                            { label: isDeletable(t) ? "Delete" : "Delete (not while in progress)", icon: <Trash2 />, danger: true, onSelect: () => setDeleting(t), disabled: !isDeletable(t) },
+                          ]
+                        : []),
+                    ]}
+                  />
                 </div>
               ),
             },
           ]}
         />
-        <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="trips" />
+        <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="trips" showEdges />
       </Card>
 
       <DeleteTripDialog trip={deleting} loading={remove.isPending} error={remove.error?.message} onConfirm={() => remove.mutate(undefined)} onClose={() => { remove.reset(); setDeleting(null); }} />

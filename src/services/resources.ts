@@ -13,6 +13,7 @@ import type {
   Paginated,
   Resource,
   SearchResult,
+  StopStatus,
   StatusCount,
   Trip,
   TripStatus,
@@ -63,7 +64,7 @@ export const driversService = {
 
 export const tripsService = {
   ...crud<Trip>("trips"),
-  summary: () => api.get<{ data: StatusCount<TripStatus>[] }>("trips/summary"),
+  summary: () => api.get<{ data: (StatusCount<TripStatus> & { this_month: number; last_month: number })[] }>("trips/summary"),
   availability: (departure_at: string, estimated_arrival_at: string, exclude_trip_id?: number) =>
     api.get<{ data: { vehicles: Vehicle[]; drivers: Driver[] } }>("trips/availability", {
       departure_at,
@@ -82,7 +83,7 @@ export const tripsService = {
 
 export const stopsService = {
   /** Stops across all trips, for the Itinerary table. */
-  board: (params: ListParams = {}) => api.get<Paginated<TripStop>>("stops", params),
+  board: (params: ListParams = {}) => api.get<Paginated<TripStop> & { counts: Partial<Record<StopStatus, number>> }>("stops", params),
   list: (tripId: number) => api.get<{ data: TripStop[] }>(`trips/${tripId}/stops`),
   create: (tripId: number, data: Payload) => api.post<Resource<TripStop>>(`trips/${tripId}/stops`, data),
   update: (tripId: number, stopId: number, data: Payload) => api.patch<Resource<TripStop>>(`trips/${tripId}/stops/${stopId}`, data),

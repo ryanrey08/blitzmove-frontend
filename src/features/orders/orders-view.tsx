@@ -1,14 +1,10 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { endOfMonth, format, parseISO, startOfMonth, subMonths } from "date-fns";
+import { format } from "date-fns";
 import {
-  ArrowDown,
-  ArrowUp,
   Ban,
-  CalendarDays,
   CheckCircle2,
-  ChevronDown,
   Download,
   Eye,
   Hourglass,
@@ -32,10 +28,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { DataTable } from "@/components/ui/data-table";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Input, Select } from "@/components/ui/form";
+import { Select } from "@/components/ui/form";
 import { Pagination } from "@/components/ui/pagination";
 import { SearchInput } from "@/components/ui/search-input";
+import { StatFilterCards } from "@/components/ui/stat-filter-cards";
 import { useToast } from "@/components/ui/toast";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { usePermissions } from "@/hooks/use-current-user";
@@ -77,66 +75,6 @@ export function destinationOf(address: string) {
       .filter((p) => p && !/\d/.test(p))
       .slice(-2)
       .join(", ") || address
-  );
-}
-
-function Trend({ current, previous }: { current: number; previous: number }) {
-  if (!current && !previous) return <p className="text-xs text-ink-400">No orders this month</p>;
-  if (!previous) return <p className="text-xs text-ink-500">{current} booked this month</p>;
-  const change = Math.round(((current - previous) / previous) * 100);
-  const up = change >= 0;
-  return (
-    <p className="text-xs text-ink-500">
-      <span className={cn("inline-flex items-center gap-0.5 font-semibold", up ? "text-emerald-600" : "text-brand-600")}>
-        {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-        {Math.abs(change)}%
-      </span>{" "}
-      vs. last month
-    </p>
-  );
-}
-
-function DateRangeFilter({ from, to, onChange }: { from: string; to: string; onChange: (from: string, to: string) => void }) {
-  const label = from || to ? `${from ? format(parseISO(from), "MMM dd, yyyy") : "…"} - ${to ? format(parseISO(to), "MMM dd, yyyy") : "…"}` : "All order dates";
-  const preset = (start: Date, end: Date) => onChange(format(start, "yyyy-MM-dd"), format(end, "yyyy-MM-dd"));
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="relative">
-      <button type="button" onClick={() => setOpen((v) => !v)} className="input flex items-center gap-2 text-left" aria-expanded={open}>
-        <CalendarDays className="h-4 w-4 shrink-0 text-ink-500" />
-        <span className="flex-1 truncate">{label}</span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-ink-400" />
-      </button>
-      {open && (
-        <div className="absolute z-30 mt-1 w-72 space-y-3 rounded-lg border border-ink-100 bg-white p-3 shadow-lg">
-          <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs text-ink-500">
-              From
-              <Input type="date" value={from} max={to || undefined} onChange={(e) => onChange(e.target.value, to)} className="mt-1" />
-            </label>
-            <label className="text-xs text-ink-500">
-              To
-              <Input type="date" value={to} min={from || undefined} onChange={(e) => onChange(from, e.target.value)} className="mt-1" />
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Button size="sm" variant="secondary" onClick={() => preset(startOfMonth(new Date()), endOfMonth(new Date()))}>
-              This month
-            </Button>
-            <Button size="sm" variant="secondary" onClick={() => preset(startOfMonth(subMonths(new Date(), 1)), endOfMonth(subMonths(new Date(), 1)))}>
-              Last month
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => onChange("", "")}>
-              Clear
-            </Button>
-          </div>
-          <Button size="sm" className="w-full" onClick={() => setOpen(false)}>
-            Done
-          </Button>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -273,37 +211,20 @@ export function OrdersView() {
       </div>
 
       {/* Status cards double as quick filters. */}
-      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {CARDS.map((card) => {
+      <StatFilterCards
+        loading={summary.isLoading}
+        active={params.delayed ? "delayed" : (params.status as string)}
+        onSelect={(status) => update({ status, delayed: "" })}
+        trendNoun="booked"
+        cards={CARDS.map((card) => {
           const s = stat(card.status);
-          const active = !params.delayed && (params.status as string) === card.status;
-          return (
-            <button
-              key={card.label}
-              type="button"
-              onClick={() => update({ status: card.status, delayed: "" })}
-              aria-pressed={active}
-              className={cn(
-                "flex items-start gap-3 rounded-xl border bg-white p-4 text-left shadow-card transition hover:border-ink-200",
-                active ? "border-brand-300 ring-2 ring-brand-100" : "border-ink-100",
-              )}
-            >
-              <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", card.tone)}>
-                <card.icon className="h-6 w-6" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium text-ink-600">{card.label}</span>
-                {summary.isLoading ? <span className="mt-1 block h-7 w-12 animate-pulse rounded bg-ink-100" /> : <span className="block text-2xl font-bold text-ink-900">{s.count}</span>}
-                {!summary.isLoading && <Trend current={s.this} previous={s.last} />}
-              </span>
-            </button>
-          );
+          return { key: card.status, label: card.label, icon: card.icon, tone: card.tone, count: summary.data ? s.count : undefined, trend: { current: s.this, previous: s.last } };
         })}
-      </div>
+      />
 
       {/* Filters */}
       <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_minmax(0,1.3fr)_auto]">
-        <DateRangeFilter from={params.created_from as string} to={params.created_to as string} onChange={(created_from, created_to) => update({ created_from, created_to })} />
+        <DateRangeFilter from={params.created_from as string} to={params.created_to as string} onChange={(created_from, created_to) => update({ created_from, created_to })} emptyLabel="All order dates" />
         <Select
           value={statusFilter}
           onChange={(e) => (e.target.value === "delayed" ? update({ status: "", delayed: "1" }) : update({ status: e.target.value, delayed: "" }))}
