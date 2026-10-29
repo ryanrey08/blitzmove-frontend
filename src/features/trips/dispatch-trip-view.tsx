@@ -557,7 +557,7 @@ function DispatchForm({ trip }: { trip: Trip }) {
                     <Button variant="secondary" onClick={() => window.print()}>
                       <Printer className="h-4 w-4" /> Print Trip Sheet
                     </Button>
-                    <Button variant="secondary" onClick={() => router.push(`/transportation/itinerary?trip=${trip.id}`)}>
+                    <Button variant="secondary" onClick={() => router.push(`/transportation/itinerary/${trip.id}`)}>
                       <Eye className="h-4 w-4" /> Preview Itinerary
                     </Button>
                   </div>
@@ -590,7 +590,7 @@ function DispatchForm({ trip }: { trip: Trip }) {
                     {TRANSITIONS[key].icon} {TRANSITIONS[key].label}
                   </Button>
                 ))}
-                <Button variant="secondary" className="w-full" onClick={() => router.push(`/transportation/itinerary?trip=${trip.id}`)}>
+                <Button variant="secondary" className="w-full" onClick={() => router.push(`/transportation/itinerary/${trip.id}`)}>
                   <Eye className="h-4 w-4" /> Preview Itinerary
                 </Button>
               </CardBody>

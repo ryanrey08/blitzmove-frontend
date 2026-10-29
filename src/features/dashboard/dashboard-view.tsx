@@ -115,7 +115,7 @@ export function DashboardView() {
                 rowKey={(t) => t.id}
                 empty={{ title: "No active trips", description: "Dispatched and in-progress trips will appear here." }}
                 columns={[
-                  { key: "no", header: "Trip No.", cell: (t) => <Link href={`/transportation/itinerary?trip=${t.id}`} className="font-medium text-ink-900 hover:text-brand-600">{t.trip_number}</Link> },
+                  { key: "no", header: "Trip No.", cell: (t) => <Link href={`/transportation/itinerary/${t.id}`} className="font-medium text-ink-900 hover:text-brand-600">{t.trip_number}</Link> },
                   { key: "route", header: "Route", cell: (t) => <span className="line-clamp-1 max-w-64 whitespace-normal">{t.origin} → {t.destination}</span> },
                   { key: "vehicle", header: "Vehicle / Driver", cell: (t) => (<span><span className="block font-medium text-ink-900">{t.vehicle?.plate_number}</span><span className="text-xs text-ink-500">{t.driver?.full_name}</span></span>) },
                   { key: "status", header: "Status", cell: (t) => <StatusBadge status={t.status} map={TRIP_STATUS} /> },

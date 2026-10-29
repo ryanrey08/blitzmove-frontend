@@ -64,7 +64,7 @@ export function MonitoringView() {
           rowKey={(t) => t.id}
           empty={{ title: "No active assignments", description: "Dispatched and in-progress trips appear here." }}
           columns={[
-            { key: "trip", header: "Trip", cell: (t) => <Link href={`/transportation/itinerary?trip=${t.id}`} className="font-medium text-ink-900 hover:text-brand-600">{t.trip_number}</Link> },
+            { key: "trip", header: "Trip", cell: (t) => <Link href={`/transportation/itinerary/${t.id}`} className="font-medium text-ink-900 hover:text-brand-600">{t.trip_number}</Link> },
             { key: "vehicle", header: "Vehicle", cell: (t) => t.vehicle?.plate_number },
             { key: "driver", header: "Driver", cell: (t) => t.driver?.full_name },
             { key: "route", header: "Route", cell: (t) => `${t.origin} → ${t.destination}` },

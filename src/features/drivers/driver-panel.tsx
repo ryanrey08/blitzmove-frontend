@@ -154,7 +154,7 @@ export function DriverPanel({ id, onClose, onEdit, canEdit }: { id: number; onCl
                       <tr key={t.id}>
                         <td className="py-2 pr-3 whitespace-nowrap">{formatDate(t.departure_at)}</td>
                         <td className="py-2 pr-3">
-                          <Link href={`/transportation/itinerary?trip=${t.id}`} className="font-medium hover:text-brand-600">
+                          <Link href={`/transportation/itinerary/${t.id}`} className="font-medium hover:text-brand-600">
                             {t.trip_number}
                           </Link>
                         </td>

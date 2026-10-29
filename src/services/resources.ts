@@ -80,6 +80,8 @@ export const tripsService = {
 };
 
 export const stopsService = {
+  /** Stops across all trips, for the Itinerary table. */
+  board: (params: ListParams = {}) => api.get<Paginated<TripStop>>("stops", params),
   list: (tripId: number) => api.get<{ data: TripStop[] }>(`trips/${tripId}/stops`),
   create: (tripId: number, data: Payload) => api.post<Resource<TripStop>>(`trips/${tripId}/stops`, data),
   update: (tripId: number, stopId: number, data: Payload) => api.patch<Resource<TripStop>>(`trips/${tripId}/stops/${stopId}`, data),

@@ -77,7 +77,7 @@ export function VehicleDetail({ id }: { id: number }) {
             {v.active_trip ? (
               <dl>
                 <DetailRow label="Trip">
-                  <Link href={`/transportation/itinerary?trip=${v.active_trip.id}`} className="text-brand-600 hover:underline">
+                  <Link href={`/transportation/itinerary/${v.active_trip.id}`} className="text-brand-600 hover:underline">
                     {v.active_trip.trip_number}
                   </Link>
                 </DetailRow>
@@ -120,7 +120,7 @@ export function VehicleDetail({ id }: { id: number }) {
             rowKey={(t) => t.id}
             empty={{ title: "No trips yet" }}
             columns={[
-              { key: "no", header: "Trip No.", cell: (t) => <Link href={`/transportation/itinerary?trip=${t.id}`} className="font-medium hover:text-brand-600">{t.trip_number}</Link> },
+              { key: "no", header: "Trip No.", cell: (t) => <Link href={`/transportation/itinerary/${t.id}`} className="font-medium hover:text-brand-600">{t.trip_number}</Link> },
               { key: "route", header: "Route", cell: (t) => `${t.origin} → ${t.destination}` },
               { key: "driver", header: "Driver", cell: (t) => t.driver?.full_name },
               { key: "dep", header: "Departure", cell: (t) => <span className="whitespace-nowrap">{formatDateTime(t.departure_at)}</span> },

@@ -46,7 +46,7 @@ export function TripDetail({ id }: { id: number }) {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => router.push(`/transportation/itinerary?trip=${trip.id}`)}>
+          <Button variant="secondary" onClick={() => router.push(`/transportation/itinerary/${trip.id}`)}>
             <MapPinned className="h-4 w-4" /> Itinerary
           </Button>
           {canOperate && (

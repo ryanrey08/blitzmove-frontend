@@ -57,7 +57,7 @@ export function GpsTrackingView() {
               cell: (v) =>
                 v.active_trip ? (
                   <span className="text-xs">
-                    <Link href={`/transportation/itinerary?trip=${v.active_trip.id}`} className="block font-medium text-ink-900 hover:text-brand-600">{v.active_trip.trip_number}</Link>
+                    <Link href={`/transportation/itinerary/${v.active_trip.id}`} className="block font-medium text-ink-900 hover:text-brand-600">{v.active_trip.trip_number}</Link>
                     <StatusBadge status={v.active_trip.status} map={TRIP_STATUS} />
                   </span>
                 ) : (

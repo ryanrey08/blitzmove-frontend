@@ -147,6 +147,8 @@ export interface TripStop {
   address: string | null;
   order_id: number | null;
   order?: Order | null;
+  /** Included on the cross-trip stops list (Itinerary). */
+  trip?: Trip;
   estimated_arrival_at: string | null;
   actual_arrival_at: string | null;
   status: StopStatus;
