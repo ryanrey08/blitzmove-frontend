@@ -78,7 +78,7 @@ export const tripsService = {
   /** Dispatch with an optional dispatch time and a last-minute vehicle/driver change (applied together server-side). */
   dispatch: (id: number, data: { notes?: string | null; dispatched_at?: string | null; vehicle_id?: number; driver_id?: number }) =>
     api.patch<Resource<Trip>>(`trips/${id}/status`, { status: "dispatched", ...data }),
-  optimize: (id: number) => api.post<{ data: unknown }>(`trips/${id}/route/optimize`),
+  optimize: (id: number, traffic = false) => api.post<{ data: unknown }>(`trips/${id}/route/optimize`, { traffic }),
 };
 
 export const stopsService = {
@@ -141,7 +141,23 @@ export interface RoutePreview {
   unresolved: string[];
 }
 
+export interface RoutePlan {
+  trip_id: number;
+  /** Hex color of this route on the day map. */
+  color: string;
+  /** Stop ids in driving order. */
+  stop_ids: number[];
+  points: RoutePreview["points"];
+  distance_km: number | null;
+  duration_minutes: number | null;
+  legs: RoutePreview["legs"];
+  unresolved: string[];
+}
+
 export const routingService = {
+  /** Several trips on one map; `optimize` proposes orders, `orders` previews given ones. Nothing is saved. */
+  plan: (body: { trip_ids: number[]; optimize?: boolean; traffic?: boolean; orders?: Record<number, number[]> }) =>
+    api.post<{ data: { routes: RoutePlan[]; image: string | null } }>("routing/plan", body),
   status: () => api.get<{ data: { configured: boolean; provider: string | null } }>("routing/status"),
   preview: (stops: { label: string; query?: string | null }[], options: { optimize?: boolean; legendInset?: boolean } = {}) =>
     api.post<{ data: RoutePreview }>("routing/preview", { stops, optimize: !!options.optimize, legend_inset: !!options.legendInset }),

@@ -20,7 +20,7 @@ export interface RouteStop {
 
 export function useRoutingStatus() {
   const routing = useQuery({ queryKey: ["routing", "status"], queryFn: routingService.status, staleTime: 300_000 });
-  return { configured: routing.data?.data.configured ?? false, provider: routing.data?.data.provider ?? null };
+  return { configured: routing.data?.data.configured ?? false, provider: routing.data?.data.provider ?? null, loaded: !!routing.data };
 }
 
 /** Routes the stops through the API's routing provider (debounced; needs at least an origin and destination). */
