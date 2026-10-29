@@ -3,7 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Ban, CheckCircle2, Circle, ClipboardCheck, Eye, Flag, History, Play, Send, Shuffle, Truck, Undo2, UserRound } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/ui/badge";
@@ -28,7 +28,8 @@ import { DetailRow } from "../orders/order-detail";
 import { ReassignDialog } from "./reassign-dialog";
 import { TRIP_KEYS, useTrip } from "./use-trip";
 
-function checklist(trip: Trip) {
+/** Pre-dispatch checks mirroring TripService::dispatch; optional items don't block. */
+export function checklist(trip: Trip) {
   const departureDay = trip.departure_at.slice(0, 10);
   return [
     { label: "Vehicle and driver assigned", ok: !!trip.vehicle && !!trip.driver },
@@ -211,6 +212,9 @@ function TripDispatchPanel({ id }: { id: number }) {
                     <Button className="w-full" onClick={() => change.mutate({ status: "dispatched", note: notes || undefined })} loading={change.isPending && !confirm} disabled={blocking.length > 0}>
                       <Send className="h-4 w-4" /> Complete & Dispatch
                     </Button>
+                    <Link href={`/transportation/dispatch/create?trip=${trip.id}`} className="block text-center text-xs font-medium text-brand-600 hover:underline">
+                      Open full dispatch page
+                    </Link>
                     {blocking.length > 0 && <p className="text-xs text-brand-700">Resolve the checklist items in red before dispatching.</p>}
                     {change.error && !confirm && <p className="text-xs text-brand-700">{change.error.field("driver_id") ?? change.error.field("vehicle_id") ?? change.error.message}</p>}
                   </>
@@ -285,7 +289,9 @@ const TABS = [
 ];
 
 export function DispatchView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const { canOperate } = usePermissions();
   const [selected, setSelected] = useState<number | null>(Number(searchParams.get("trip")) || null);
   const { params, update, setPage } = useListParams({ scope: "dispatch", status: "", sort: "departure_at", per_page: 8 });
   const list = useQuery({ queryKey: ["trips", params], queryFn: () => tripsService.list(params), placeholderData: keepPreviousData });
@@ -294,7 +300,17 @@ export function DispatchView() {
 
   return (
     <>
-      <PageHeader title="Dispatch Management" description="Review scheduled and active trips, assign resources, and dispatch to drivers." />
+      <PageHeader
+        title="Dispatch Management"
+        description="Review scheduled and active trips, assign resources, and dispatch to drivers."
+        actions={
+          canOperate && (
+            <Button size="lg" onClick={() => router.push("/transportation/dispatch/create")}>
+              <Send className="h-5 w-5" /> Dispatch a Trip
+            </Button>
+          )
+        }
+      />
       <Card className="mb-6">
         <Tabs
           className="px-4 pt-2"

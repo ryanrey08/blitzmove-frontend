@@ -186,6 +186,7 @@ export interface Trip {
   dispatched_by?: User | null;
   dispatch_notes: string | null;
   notes: string | null;
+  created_by?: User | null;
   stops_count?: number;
   stops?: TripStop[];
   assignments?: DispatchAssignment[];

@@ -72,6 +72,9 @@ export const tripsService = {
   reassign: (id: number, data: { vehicle_id: number; driver_id: number; reason?: string }) =>
     api.post<Resource<Trip>>(`trips/${id}/reassign`, data),
   changeStatus: (id: number, status: TripStatus, notes?: string) => api.patch<Resource<Trip>>(`trips/${id}/status`, { status, notes }),
+  /** Dispatch with an optional dispatch time and a last-minute vehicle/driver change (applied together server-side). */
+  dispatch: (id: number, data: { notes?: string | null; dispatched_at?: string | null; vehicle_id?: number; driver_id?: number }) =>
+    api.patch<Resource<Trip>>(`trips/${id}/status`, { status: "dispatched", ...data }),
   optimize: (id: number) => api.post<{ data: unknown }>(`trips/${id}/route/optimize`),
 };
 
