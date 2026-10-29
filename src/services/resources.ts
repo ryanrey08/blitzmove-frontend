@@ -44,7 +44,8 @@ export const searchService = {
 
 export const ordersService = {
   ...crud<Order>("orders"),
-  summary: () => api.get<{ data: StatusCount<OrderStatus>[] }>("orders/summary"),
+  summary: () => api.get<{ data: (StatusCount<OrderStatus> & { this_month: number; last_month: number })[]; meta: { delayed: number } }>("orders/summary"),
+  filterOptions: () => api.get<{ data: { customers: string[]; destinations: string[] } }>("orders/filter-options"),
   changeStatus: (id: number, status: OrderStatus, reason?: string) =>
     api.patch<Resource<Order>>(`orders/${id}/status`, { status, reason }),
 };

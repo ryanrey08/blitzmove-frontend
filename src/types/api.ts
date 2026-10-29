@@ -121,6 +121,10 @@ export interface Order {
   cargo_description: string;
   quantity: number;
   weight_kg: number | null;
+  amount: number | null;
+  payment_terms: string | null;
+  /** Open order whose scheduled delivery time has passed. */
+  is_delayed: boolean;
   delivery_instructions: string | null;
   status: OrderStatus;
   allowed_transitions: OrderStatus[];

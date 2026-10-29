@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { PAGE_SIZES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { Paginated } from "@/types/api";
@@ -11,6 +11,8 @@ interface PaginationProps {
   perPage?: number;
   onPerPageChange?: (perPage: number) => void;
   noun?: string;
+  /** Also show first/last page buttons. */
+  showEdges?: boolean;
 }
 
 function pageWindow(current: number, last: number): (number | "…")[] {
@@ -20,7 +22,7 @@ function pageWindow(current: number, last: number): (number | "…")[] {
   return sorted.flatMap((p, i) => (i > 0 && p - sorted[i - 1] > 1 ? (["…", p] as const) : [p]));
 }
 
-export function Pagination({ meta, onPageChange, perPage, onPerPageChange, noun = "records" }: PaginationProps) {
+export function Pagination({ meta, onPageChange, perPage, onPerPageChange, noun = "records", showEdges = false }: PaginationProps) {
   if (!meta || meta.total === 0) return null;
   const { current_page: page, last_page: last, from, to, total } = meta;
 
@@ -33,6 +35,11 @@ export function Pagination({ meta, onPageChange, perPage, onPerPageChange, noun 
       </p>
       <div className="flex items-center gap-3">
         <nav className="flex items-center gap-1" aria-label="Pagination">
+          {showEdges && (
+            <button className={cn(btn, "border-ink-200 bg-white hover:bg-ink-50")} disabled={page <= 1} onClick={() => onPageChange(1)} aria-label="First page">
+              <ChevronsLeft className="h-4 w-4" />
+            </button>
+          )}
           <button className={cn(btn, "border-ink-200 bg-white hover:bg-ink-50")} disabled={page <= 1} onClick={() => onPageChange(page - 1)} aria-label="Previous page">
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -55,6 +62,11 @@ export function Pagination({ meta, onPageChange, perPage, onPerPageChange, noun 
           <button className={cn(btn, "border-ink-200 bg-white hover:bg-ink-50")} disabled={page >= last} onClick={() => onPageChange(page + 1)} aria-label="Next page">
             <ChevronRight className="h-4 w-4" />
           </button>
+          {showEdges && (
+            <button className={cn(btn, "border-ink-200 bg-white hover:bg-ink-50")} disabled={page >= last} onClick={() => onPageChange(last)} aria-label="Last page">
+              <ChevronsRight className="h-4 w-4" />
+            </button>
+          )}
         </nav>
         {onPerPageChange && (
           <select

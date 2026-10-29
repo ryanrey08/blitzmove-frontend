@@ -13,6 +13,8 @@ import { ordersService } from "@/services/resources";
 import type { Order } from "@/types/api";
 import { applyApiErrors, nullable } from "../shared";
 
+export const PAYMENT_TERMS = ["COD", "Net 7", "Net 15", "Net 30", "Net 60"];
+
 const schema = z
   .object({
     customer_name: z.string().trim().min(1, "Customer name is required.").max(255),
@@ -24,6 +26,8 @@ const schema = z
     cargo_description: z.string().trim().min(1, "Describe the cargo.").max(255),
     quantity: z.coerce.number<string>().int("Whole numbers only.").min(1, "At least 1."),
     weight_kg: z.union([z.literal(""), z.coerce.number<string>().min(0, "Cannot be negative.")]),
+    amount: z.union([z.literal(""), z.coerce.number<string>().min(0, "Cannot be negative.")]),
+    payment_terms: z.string().trim().max(50),
     delivery_instructions: z.string().max(2000),
   })
   .refine((v) => !v.scheduled_pickup_at || !v.scheduled_delivery_at || new Date(v.scheduled_delivery_at) > new Date(v.scheduled_pickup_at), {
@@ -46,6 +50,8 @@ function defaults(order?: Order | null): FormInput {
     cargo_description: order?.cargo_description ?? "",
     quantity: String(order?.quantity ?? 1),
     weight_kg: order?.weight_kg?.toString() ?? "",
+    amount: order?.amount?.toString() ?? "",
+    payment_terms: order?.payment_terms ?? "",
     delivery_instructions: order?.delivery_instructions ?? "",
   };
 }
@@ -133,6 +139,17 @@ export function OrderFormModal({ open, order, onClose, onSaved }: { open: boolea
           </Field>
           <Field label="Weight (kg)" htmlFor="weight_kg" error={errors.weight_kg?.message}>
             <Input id="weight_kg" type="number" min={0} step="0.01" invalid={!!errors.weight_kg} {...register("weight_kg")} />
+          </Field>
+          <Field label="Order amount (₱)" htmlFor="amount" error={errors.amount?.message}>
+            <Input id="amount" type="number" min={0} step="0.01" invalid={!!errors.amount} {...register("amount")} />
+          </Field>
+          <Field label="Payment terms" htmlFor="payment_terms" error={errors.payment_terms?.message}>
+            <Input id="payment_terms" list="payment-terms" placeholder="e.g. Net 30" {...register("payment_terms")} />
+            <datalist id="payment-terms">
+              {PAYMENT_TERMS.map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
           </Field>
           <Field label="Delivery instructions" htmlFor="delivery_instructions" error={errors.delivery_instructions?.message} className="sm:col-span-2">
             <Textarea id="delivery_instructions" {...register("delivery_instructions")} />

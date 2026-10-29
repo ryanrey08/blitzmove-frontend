@@ -26,6 +26,8 @@ interface DataTableProps<T> {
   onSortChange?: (sort: string) => void;
   onRowClick?: (row: T) => void;
   selectedKey?: string | number | null;
+  /** Extra classes for a row, e.g. to highlight rows that need attention. */
+  rowClassName?: (row: T) => string | undefined;
   empty?: { title: string; description?: string; action?: ReactNode };
   className?: string;
 }
@@ -41,6 +43,7 @@ export function DataTable<T>({
   onSortChange,
   onRowClick,
   selectedKey,
+  rowClassName,
   empty = { title: "No records found" },
   className,
 }: DataTableProps<T>) {
@@ -97,6 +100,7 @@ export function DataTable<T>({
                     className={cn(
                       "transition-colors",
                       onRowClick && "cursor-pointer hover:bg-ink-50",
+                      rowClassName?.(row),
                       selectedKey === key && "bg-brand-50/60 hover:bg-brand-50",
                       loading && "opacity-60",
                     )}
