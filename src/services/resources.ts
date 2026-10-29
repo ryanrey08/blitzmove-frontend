@@ -20,6 +20,7 @@ import type {
   TripStop,
   Vehicle,
   VehicleLocation,
+  VehiclePhoto,
 } from "@/types/api";
 
 type Payload = Record<string, unknown>;
@@ -54,6 +55,13 @@ export const ordersService = {
 
 export const vehiclesService = {
   ...crud<Vehicle>("vehicles"),
+  uploadPhoto: (id: number, file: File) => {
+    const form = new FormData();
+    form.set("photo", file);
+    return api.post<Resource<VehiclePhoto>>(`vehicles/${id}/photos`, form);
+  },
+  makeCover: (id: number, photoId: number) => api.patch<{ message: string }>(`vehicles/${id}/photos/${photoId}/cover`),
+  removePhoto: (id: number, photoId: number) => api.delete<{ message: string }>(`vehicles/${id}/photos/${photoId}`),
   summary: () => api.get<{ data: StatusCount[] }>("vehicles/summary"),
 };
 

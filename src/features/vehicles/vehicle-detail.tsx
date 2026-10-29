@@ -3,22 +3,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Fuel, MapPin, Pencil, Route, Truck } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 import { usePermissions } from "@/hooks/use-current-user";
-import { FUEL_TYPES, TRIP_STATUS, VEHICLE_STATUS, VEHICLE_TYPES, labelOf } from "@/lib/constants";
-import { formatCurrency, formatDateTime, formatNumber } from "@/lib/utils";
+import { BODY_TYPES, FUEL_TYPES, TRIP_STATUS, VEHICLE_STATUS, VEHICLE_TYPES, labelOf } from "@/lib/constants";
+import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/lib/utils";
+import { api } from "@/services/api-client";
 import { vehiclesService } from "@/services/resources";
 import { DetailRow } from "../orders/order-detail";
-import { VehicleFormModal } from "./vehicle-form";
 
 export function VehicleDetail({ id }: { id: number }) {
   const { canManageFleet } = usePermissions();
-  const [editing, setEditing] = useState(false);
+  const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["vehicle", id], queryFn: () => vehiclesService.get(id) });
   const v = data?.data;
 
@@ -46,7 +46,7 @@ export function VehicleDetail({ id }: { id: number }) {
           </div>
         </div>
         {canManageFleet && (
-          <Button variant="secondary" onClick={() => setEditing(true)}>
+          <Button variant="secondary" onClick={() => router.push(`/fleet/vehicles/${v.id}/edit`)}>
             <Pencil className="h-4 w-4" /> Edit vehicle
           </Button>
         )}
@@ -55,9 +55,18 @@ export function VehicleDetail({ id }: { id: number }) {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card>
           <CardHeader title="Vehicle Information" icon={<Truck />} />
+          {v.cover_photo && (
+            // eslint-disable-next-line @next/next/no-img-element -- served by the API
+            <img src={api.url(v.cover_photo)} alt={v.plate_number} className="aspect-[16/9] w-full border-b border-ink-100 object-cover" />
+          )}
           <CardBody>
             <dl>
               <DetailRow label="Year model">{v.year}</DetailRow>
+              <DetailRow label="Color / Body">{[v.color, BODY_TYPES.find((b) => b.value === v.body_type)?.label, v.wheels ? `${v.wheels} wheeler` : null].filter(Boolean).join(" · ") || "—"}</DetailRow>
+              <DetailRow label="Registration">{v.registration_expiry ? `Expires ${formatDate(v.registration_expiry)}` : "—"}</DetailRow>
+              <DetailRow label="Insurance">{v.insurance_expiry ? `Expires ${formatDate(v.insurance_expiry)}` : "—"}</DetailRow>
+              <DetailRow label="Depot">{v.home_depot ?? "—"}</DetailRow>
+              <DetailRow label="Odometer">{v.odometer_km != null ? `${formatNumber(v.odometer_km)} km` : "—"}</DetailRow>
               <DetailRow label="Capacity">{v.capacity_kg ? `${formatNumber(v.capacity_kg)} kg` : "—"}</DetailRow>
               <DetailRow label="Fuel type">{labelOf(FUEL_TYPES, v.fuel_type)}</DetailRow>
               <DetailRow label="VIN / Chassis">{v.vin ?? "—"}</DetailRow>
@@ -144,7 +153,6 @@ export function VehicleDetail({ id }: { id: number }) {
         </Card>
       </div>
 
-      <VehicleFormModal open={editing} vehicle={v} onClose={() => setEditing(false)} />
     </>
   );
 }

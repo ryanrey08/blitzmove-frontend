@@ -22,13 +22,11 @@ import { VEHICLE_STATUS, VEHICLE_TYPES, labelOf, statusOptions } from "@/lib/con
 import { formatNumber } from "@/lib/utils";
 import { vehiclesService } from "@/services/resources";
 import type { Vehicle } from "@/types/api";
-import { VehicleFormModal } from "./vehicle-form";
 
 export function VehiclesView() {
   const router = useRouter();
   const { canManageFleet } = usePermissions();
   const { params, update, setPage } = useListParams({ sort: "plate_number", status: "", vehicle_type: "" });
-  const [editing, setEditing] = useState<Vehicle | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<Vehicle | null>(null);
 
   const list = useQuery({ queryKey: ["vehicles", params], queryFn: () => vehiclesService.list(params), placeholderData: keepPreviousData });
@@ -45,7 +43,7 @@ export function VehiclesView() {
         description="Manage your fleet, capacities and regular driver assignments."
         actions={
           canManageFleet && (
-            <Button onClick={() => setEditing(null)}>
+            <Button onClick={() => router.push("/fleet/vehicles/create")}>
               <Plus className="h-4 w-4" /> Add Vehicle
             </Button>
           )
@@ -111,7 +109,7 @@ export function VehiclesView() {
                       { label: "View details", icon: <Eye />, onSelect: () => router.push(`/fleet/vehicles/${v.id}`) },
                       ...(canManageFleet
                         ? [
-                            { label: "Edit", icon: <Pencil />, onSelect: () => setEditing(v) },
+                            { label: "Edit", icon: <Pencil />, onSelect: () => router.push(`/fleet/vehicles/${v.id}/edit`) },
                             { label: "Remove", icon: v.active_trip ? <Ban /> : <Trash2 />, danger: true, onSelect: () => setDeleting(v) },
                           ]
                         : []),
@@ -125,7 +123,6 @@ export function VehiclesView() {
         <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="vehicles" />
       </Card>
 
-      <VehicleFormModal open={editing !== undefined} vehicle={editing} onClose={() => setEditing(undefined)} />
       <ConfirmDialog
         open={!!deleting}
         title="Remove vehicle"

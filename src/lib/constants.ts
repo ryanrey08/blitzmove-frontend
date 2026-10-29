@@ -12,6 +12,7 @@ import type {
   TripStatus,
   TripType,
   VehicleDocumentType,
+  VehicleFeature,
   VehicleStatus,
   VehicleType,
 } from "@/types/api";
@@ -104,6 +105,30 @@ export const VEHICLE_TYPES = options<VehicleType>({
   pickup: "Pickup",
   motorcycle: "Motorcycle",
 });
+
+export const BODY_TYPES: Option[] = [
+  { value: "closed_van", label: "Closed Van" },
+  { value: "wing_van", label: "Wing Van" },
+  { value: "dropside", label: "Dropside" },
+  { value: "open_cargo", label: "Open Cargo" },
+  { value: "flatbed", label: "Flatbed" },
+  { value: "refrigerated", label: "Refrigerated" },
+  { value: "tanker", label: "Tanker" },
+  { value: "dump", label: "Dump" },
+  { value: "other", label: "Other" },
+];
+
+export const WHEEL_OPTIONS: Option[] = [4, 6, 8, 10, 12, 14, 16, 18, 22].map((n) => ({ value: String(n), label: `${n} Wheeler` }));
+
+export const EMISSION_STANDARDS: Option[] = ["Euro 2", "Euro 3", "Euro 4", "Euro 5", "Euro 6"].map((v) => ({ value: v, label: v }));
+
+export const VEHICLE_FEATURES: Option<VehicleFeature>[] = [
+  { value: "gps_tracker", label: "With GPS Tracker" },
+  { value: "dash_camera", label: "With Dash Camera" },
+  { value: "ref_cooler", label: "With Ref Cooler" },
+  { value: "tail_lift", label: "With Tail Lift" },
+  { value: "auxiliary_power", label: "With Auxiliary Power" },
+];
 
 export const LICENSE_TYPES = options<LicenseType>({ professional: "Professional", non_professional: "Non Professional" });
 

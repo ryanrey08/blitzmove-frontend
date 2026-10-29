@@ -69,6 +69,19 @@ export interface Driver {
   updated_at: string;
 }
 
+export type VehicleFeature = "gps_tracker" | "dash_camera" | "ref_cooler" | "tail_lift" | "auxiliary_power";
+
+export interface VehiclePhoto {
+  id: number;
+  vehicle_id: number;
+  original_name: string;
+  mime_type: string;
+  file_size: number;
+  position: number;
+  /** API path; open it with api.url(). */
+  path: string;
+}
+
 export interface VehicleLocation {
   id: number;
   vehicle_id: number;
@@ -91,6 +104,28 @@ export interface Vehicle {
   capacity_kg: number | null;
   fuel_type: FuelType;
   vin: string | null;
+  color: string | null;
+  body_type: string | null;
+  wheels: number | null;
+  engine_number: string | null;
+  home_depot: string | null;
+  gps_device_id: string | null;
+  odometer_km: number | null;
+  acquired_at: string | null;
+  cargo_volume_m3: number | null;
+  length_m: number | null;
+  width_m: number | null;
+  height_m: number | null;
+  fuel_tank_l: number | null;
+  fuel_economy_kml: number | null;
+  emission_standard: string | null;
+  features: VehicleFeature[];
+  /** Expiry of the current registration / insurance document (detail responses). */
+  registration_expiry?: string | null;
+  insurance_expiry?: string | null;
+  photos?: VehiclePhoto[];
+  /** API path of the cover photo; open it with api.url(). */
+  cover_photo?: string | null;
   status: VehicleStatus;
   assigned_driver_id: number | null;
   assigned_driver?: Driver | null;
