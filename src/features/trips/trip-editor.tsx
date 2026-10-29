@@ -14,7 +14,6 @@ import {
   Lock,
   Map as MapIcon,
   MapPin,
-  MapPinned,
   Navigation,
   Pencil,
   Plus,
@@ -33,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { Field, FormError, Input, Select, Textarea } from "@/components/ui/form";
 import { ErrorState, LoadingState } from "@/components/ui/states";
+import { useToast } from "@/components/ui/toast";
 import { useApiMutation } from "@/hooks/use-api-mutation";
 import { usePermissions } from "@/hooks/use-current-user";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -42,6 +42,7 @@ import { ApiError } from "@/services/api-client";
 import { ordersService, routingService, tripsService } from "@/services/resources";
 import type { Driver, Order, Trip, TripPriority, TripType } from "@/types/api";
 import { applyApiErrors, nullable } from "../shared";
+import { RouteMap, useRoutePreview, useRoutingStatus } from "./route-map";
 import { EMPTY_STOP, ImportOrdersDialog, StopEditorDialog, type StopDraft } from "./trip-editor-dialogs";
 import { TRIPS_PATH, isEditable } from "./trip-schedule-view";
 import { TRIP_KEYS, useTrip } from "./use-trip";
@@ -127,12 +128,6 @@ function fromTrip(trip: Trip): FormInput {
   };
 }
 
-/** Faint grid standing in for map tiles until a map provider is connected. */
-const MAP_GRID = {
-  backgroundImage: "linear-gradient(rgba(16,24,40,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(16,24,40,0.05) 1px, transparent 1px)",
-  backgroundSize: "28px 28px",
-};
-
 function formatDuration(minutes: number) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -181,7 +176,7 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
   const values = watch();
 
   const nextNumber = useQuery({ queryKey: ["trips", "next-number"], queryFn: tripsService.nextNumber, enabled: !editing });
-  const routing = useQuery({ queryKey: ["routing", "status"], queryFn: routingService.status, staleTime: 300_000 });
+  const { configured } = useRoutingStatus();
   const orders = useQuery({ queryKey: ["orders", "schedulable"], queryFn: () => ordersService.list({ schedulable: 1, per_page: 100, sort: "scheduled_pickup_at" }) });
 
   // Orders the page knows about: schedulable ones, plus those already on the trip being edited.
@@ -306,7 +301,48 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
   const weights = orderIds.map((id) => orderMap.get(id)?.weight_kg ?? null);
   const totalWeight = weights.some((w) => w !== null) ? weights.reduce<number>((sum, w) => sum + (w ?? 0), 0) : null;
   const durationMinutes = departureLocal && values.estimated_arrival_at ? Math.round((new Date(values.estimated_arrival_at).getTime() - new Date(departureLocal).getTime()) / 60000) : null;
-  const configured = routing.data?.data.configured ?? false;
+
+  // ----- Route preview (routing provider) ------------------------------------
+  const notify = useToast();
+  const routeStops = route.map((r) => ({ label: r.name, query: r.address || r.name }));
+  const preview = useRoutePreview(routeStops, configured, true);
+  const routeData = preview.data;
+  const sequenceKey = routeStops.map((r) => `${r.label}|${r.query}`).join(";");
+  const [optimizedKey, setOptimizedKey] = useState<string | null>(null);
+  const optimized = optimizedKey === sequenceKey;
+  // Legs line up with the stops only when every stop was placed and the preview matches the current order.
+  const legsMatch = !!routeData && routeData.unresolved.length === 0 && routeData.legs.length === route.length - 1 && !preview.isPlaceholderData;
+  const driveEta = (i: number) => {
+    if (!legsMatch || !departureLocal || i === 0) return null;
+    const minutes = routeData!.legs.slice(0, i).reduce((sum, leg) => sum + leg.duration_minutes, 0);
+    return new Date(new Date(departureLocal).getTime() + minutes * 60_000).toISOString();
+  };
+
+  // Fill the planned distance from the route unless the user typed their own.
+  const [autoDistance, setAutoDistance] = useState<string | null>(null);
+  useEffect(() => {
+    if (!legsMatch || routeData?.distance_km == null || locked) return;
+    const current = String(values.distance_km ?? "");
+    if (current !== "" && current !== autoDistance) return;
+    const next = String(routeData.distance_km);
+    setAutoDistance(next);
+    if (current !== next) setValue("distance_km", next);
+  }, [routeData, legsMatch]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const optimize = useApiMutation(() => routingService.preview(routeStops, { optimize: true, legendInset: true }).then((r) => r.data), {
+    onSuccess: (result) => {
+      if (result.unresolved.length) return notify(`Couldn't locate ${result.unresolved.join(", ")}. Add a fuller address, then optimize again.`, "error");
+      const reordered = result.order.slice(1, -1).map((i) => values.stops[i - 1]);
+      if (reordered.length !== values.stops.length || reordered.some((stop) => !stop)) return notify("The routing provider returned an unexpected stop order. Nothing was changed.", "error");
+      stops.replace(reordered);
+      const key = [route[0], ...reordered.map((s) => ({ name: s.location_name, address: s.address })), route[route.length - 1]]
+        .map((r) => `${r.name}|${r.address || r.name}`)
+        .join(";");
+      setOptimizedKey(key);
+      notify(result.order.join() === route.map((_, i) => i).join() ? "Stops are already in the most efficient order." : "Stops reordered for the most efficient route.");
+    },
+  });
+  const canOptimize = configured && !locked && values.stops.length >= 2 && !!values.origin.trim() && !!values.destination.trim();
 
   const steps = [
     { id: "trip-info", title: "Trip Information", description: "Basic details", done: !!(values.trip_date && values.departure_time && values.trip_type) },
@@ -628,43 +664,53 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
                   size="sm"
                   variant="secondary"
                   className="border-sky-300 text-sky-700 hover:bg-sky-50"
-                  disabled={!(editing && configured)}
-                  onClick={() => editing && router.push(`/transportation/route-optimization?trip=${trip.id}`)}
-                  title={!configured ? "No routing provider is configured." : editing ? undefined : "Save the trip first, then optimize its route."}
+                  disabled={!canOptimize}
+                  loading={optimize.isPending}
+                  onClick={() => optimize.mutate(undefined)}
+                  title={!configured ? "No routing provider is configured." : canOptimize ? "Reorder the stops between origin and destination for the shortest drive" : "Add at least two stops between the origin and destination."}
                 >
                   <Navigation className="h-3.5 w-3.5" /> Optimize Route
                 </Button>
               }
             />
             <div className="p-3">
-              <div className="relative grid min-h-80 overflow-hidden rounded-lg border border-ink-100 bg-ink-50 sm:grid-cols-[1fr_auto]" style={MAP_GRID}>
-                <div className="flex flex-col items-center justify-center gap-1 px-6 py-8 text-center">
-                  <MapPinned className="h-8 w-8 text-ink-300" />
-                  <p className="text-sm font-medium text-ink-700">{configured ? "Map preview not available" : "Map provider not configured"}</p>
-                  <p className="max-w-52 text-xs text-ink-500">{configured ? "Save the trip to see it on Route Optimization." : "Connect a map provider to draw the route."}</p>
-                </div>
-                <ol className="m-3 w-auto space-y-3 self-start rounded-lg bg-white p-3 shadow-md sm:w-52">
-                  {route.map((row, i) => (
-                    <li key={row.key} className="flex items-start gap-2.5">
-                      <span
-                        className={cn(
-                          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
-                          i === 0 ? "bg-emerald-600" : i === route.length - 1 ? "bg-brand-600" : "bg-sky-600",
-                        )}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="min-w-0 text-xs">
-                        <span className={cn("block truncate font-medium", row.name ? "text-ink-900" : "text-ink-400")}>
-                          {row.name || (i === 0 ? "Origin not set" : "Destination not set")}
-                          {i === 0 && row.name ? " (Start)" : ""}
-                        </span>
-                        <span className="text-ink-500">{row.eta ? formatTime(row.eta) : "—"}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+              <RouteMap
+                configured={configured}
+                image={routeData?.image}
+                loading={preview.isFetching}
+                error={preview.error?.message}
+                unresolved={routeData?.unresolved}
+                emptyHint="Set the origin and destination to draw the route."
+                className="min-h-96"
+                overlay={
+                  <ol className="w-56 space-y-3 rounded-lg bg-white/95 p-3 shadow-md">
+                    {route.map((row, i) => {
+                      const eta = row.eta || driveEta(i);
+                      return (
+                        <li key={row.key} className="flex items-start gap-2.5">
+                          <span
+                            className={cn(
+                              "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white",
+                              i === 0 ? "bg-emerald-600" : i === route.length - 1 ? "bg-brand-600" : "bg-sky-600",
+                            )}
+                          >
+                            {i + 1}
+                          </span>
+                          <span className="min-w-0 text-xs">
+                            <span className={cn("block truncate font-medium", row.name ? "text-ink-900" : "text-ink-400")}>
+                              {row.name || (i === 0 ? "Origin not set" : "Destination not set")}
+                              {i === 0 && row.name ? " (Start)" : ""}
+                            </span>
+                            <span className="text-ink-500" title={row.eta ? undefined : eta ? "Estimated from Mapbox drive time" : undefined}>
+                              {eta ? `${row.eta ? "" : "≈ "}${formatTime(eta)}` : "—"}
+                            </span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                }
+              />
             </div>
           </Card>
 
@@ -674,7 +720,10 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
               <dl className="space-y-2.5 text-sm">
                 <SummaryRow label="Total Stops" value={route.length} />
                 <SummaryRow label="Total Distance" value={values.distance_km !== "" && values.distance_km !== undefined ? `${formatNumber(Number(values.distance_km), 1)} km` : "—"} />
-                <SummaryRow label="Estimated Duration" value={durationMinutes && durationMinutes > 0 ? formatDuration(durationMinutes) : "—"} />
+                <SummaryRow
+                  label={legsMatch ? "Drive Time" : "Estimated Duration"}
+                  value={legsMatch && routeData?.duration_minutes != null ? formatDuration(routeData.duration_minutes) : durationMinutes && durationMinutes > 0 ? formatDuration(durationMinutes) : "—"}
+                />
                 <SummaryRow label="Total Orders" value={orderIds.length} />
                 <SummaryRow label="Total Weight" value={totalWeight !== null ? `${formatNumber(totalWeight)} kg` : "—"} />
                 <SummaryRow label="Total Volume" value={<span className="font-normal text-ink-400">Not tracked</span>} />
@@ -686,7 +735,7 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
                 <SummaryRow label="Estimated Arrival" value={values.estimated_arrival_at ? <TwoLine value={values.estimated_arrival_at} /> : "—"} />
               </dl>
               <div className="mt-4 sm:col-span-2">
-                <Field label="Planned distance (km)" htmlFor="distance_km" error={errors.distance_km?.message} hint="Enter if known. Distance isn't estimated without a routing provider.">
+                <Field label="Planned distance (km)" htmlFor="distance_km" error={errors.distance_km?.message} hint={configured ? (autoDistance !== null && String(values.distance_km) === autoDistance ? "Driving distance from Mapbox. You can override it." : "Filled from the Mapbox route when available.") : "Enter if known. Distance isn't estimated without a routing provider."}>
                   <Input id="distance_km" type="number" min={0} step="0.1" disabled={locked} {...register("distance_km")} />
                 </Field>
               </div>
@@ -699,9 +748,13 @@ function TripEditorForm({ trip }: { trip?: Trip }) {
             <div className="mx-5 mb-5 flex items-start gap-3 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" role="status">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
               <span>
-                {configured
-                  ? "Routing is configured. After saving, open Route Optimization to compute the best stop order and drive times."
-                  : "Route not optimized: no routing provider is configured, so stops keep the order you set and distance and drive time aren't calculated."}
+                {!configured
+                  ? "Route not optimized: no routing provider is configured, so stops keep the order you set and distance and drive time aren't calculated."
+                  : optimized
+                    ? `Route has been optimized for the most efficient path.${routeData?.distance_km != null && legsMatch ? ` ${formatNumber(routeData.distance_km, 1)} km, about ${formatDuration(routeData.duration_minutes ?? 0)} of driving.` : ""}`
+                    : legsMatch
+                      ? `Driving route: ${formatNumber(routeData!.distance_km ?? 0, 1)} km, about ${formatDuration(routeData!.duration_minutes ?? 0)}. Use Optimize Route to find the most efficient stop order.`
+                      : "Set the origin, destination and stops to see the driving route. Use Optimize Route to find the most efficient stop order."}
               </span>
             </div>
           </Card>

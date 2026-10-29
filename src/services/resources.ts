@@ -111,6 +111,20 @@ export const gpsService = {
     ),
 };
 
+export interface RoutePreview {
+  points: { index: number; label: string; lat: number | null; lng: number | null; matched: string | null; resolved: boolean }[];
+  /** Stop indexes in driving order (first and last stay fixed). */
+  order: number[];
+  distance_km: number | null;
+  duration_minutes: number | null;
+  legs: { distance_km: number; duration_minutes: number }[];
+  /** PNG data URI of the route, rendered server-side so the Mapbox secret token never reaches the browser. */
+  image: string | null;
+  unresolved: string[];
+}
+
 export const routingService = {
   status: () => api.get<{ data: { configured: boolean; provider: string | null } }>("routing/status"),
+  preview: (stops: { label: string; query?: string | null }[], options: { optimize?: boolean; legendInset?: boolean } = {}) =>
+    api.post<{ data: RoutePreview }>("routing/preview", { stops, optimize: !!options.optimize, legend_inset: !!options.legendInset }),
 };

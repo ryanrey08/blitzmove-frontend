@@ -15,6 +15,7 @@ import { STOP_TYPE, TRIP_STATUS } from "@/lib/constants";
 import { formatDateTime, formatNumber } from "@/lib/utils";
 import { routingService, stopsService, tripsService } from "@/services/resources";
 import type { TripStop } from "@/types/api";
+import { RouteMap, useRoutePreview } from "./route-map";
 import { TripPicker } from "./trip-picker";
 import { TRIP_KEYS, useTrip } from "./use-trip";
 
@@ -41,7 +42,15 @@ export function RouteOptimizationView() {
   const configured = routing.data?.data.configured ?? false;
 
   const save = useApiMutation(() => stopsService.reorder(tripId!, order.map((s) => s.id)), { invalidate: TRIP_KEYS });
-  const optimize = useApiMutation(() => tripsService.optimize(tripId!), { invalidate: TRIP_KEYS });
+  // The provider returns every stop id in driving order; only the middle ones can move.
+  const optimize = useApiMutation(() => tripsService.optimize(tripId!), {
+    onSuccess: (result) => {
+      const ids = (result.data as { stop_ids?: number[] }).stop_ids ?? [];
+      const byId = new Map(stops.map((s) => [s.id, s]));
+      setOrder(ids.map((id) => byId.get(id)).filter((s): s is TripStop => s?.type === "stop"));
+    },
+    successMessage: "Optimized order loaded. Review it, then save the stop order.",
+  });
 
   const move = (index: number, delta: number) =>
     setOrder((list) => {
@@ -54,6 +63,10 @@ export function RouteOptimizationView() {
   const pickup = stops.find((s) => s.type === "pickup");
   const dropoff = stops.find((s) => s.type === "dropoff");
   const planned = [pickup, ...order, dropoff].filter(Boolean) as TripStop[];
+  const preview = useRoutePreview(
+    planned.map((s) => ({ label: s.location_name, query: s.address || s.location_name })),
+    configured && !!trip,
+  );
 
   return (
     <>
@@ -160,9 +173,21 @@ export function RouteOptimizationView() {
                 <p className="mb-2 font-medium text-ink-900">Planned sequence</p>
                 <p className="text-ink-600">{planned.map((s) => s.location_name).join(" → ")}</p>
               </div>
-              <div className="flex aspect-[4/3] items-center justify-center rounded-lg border border-dashed border-ink-200 bg-ink-50 p-4 text-center text-xs text-ink-500">
-                Map preview appears here once a map provider is configured (NEXT_PUBLIC_MAP_PROVIDER).
-              </div>
+              {preview.data?.distance_km != null && preview.data.unresolved.length === 0 && (
+                <p className="text-ink-600">
+                  Driving route: <strong className="text-ink-900">{formatNumber(preview.data.distance_km, 1)} km</strong>, about{" "}
+                  <strong className="text-ink-900">{Math.floor((preview.data.duration_minutes ?? 0) / 60)}h {(preview.data.duration_minutes ?? 0) % 60}m</strong> (Mapbox).
+                </p>
+              )}
+              <RouteMap
+                configured={configured}
+                image={preview.data?.image}
+                loading={preview.isFetching}
+                error={preview.error?.message}
+                unresolved={preview.data?.unresolved}
+                emptyHint="Add addresses to the stops to draw the route."
+                className="aspect-[4/3] min-h-0"
+              />
             </CardBody>
           </Card>
         </div>
