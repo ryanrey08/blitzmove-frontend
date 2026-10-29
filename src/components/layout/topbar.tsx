@@ -18,7 +18,7 @@ export function Topbar({ user, onMenuClick, onLogout }: TopbarProps) {
   const router = useRouter();
 
   return (
-    <header className="sticky top-0 z-20 flex h-[4.5rem] items-center gap-3 border-b border-ink-100 bg-white/95 px-4 backdrop-blur sm:gap-5 sm:px-6">
+    <header className="sticky top-0 z-20 flex h-[4.5rem] print:hidden items-center gap-3 border-b border-ink-100 bg-white/95 px-4 backdrop-blur sm:gap-5 sm:px-6">
       <button onClick={onMenuClick} className="rounded-lg p-2 text-ink-700 hover:bg-ink-100" aria-label="Toggle navigation">
         <Menu className="h-6 w-6" />
       </button>

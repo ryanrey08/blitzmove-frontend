@@ -70,7 +70,7 @@ export function RouteMap({
           <p className="max-w-56 text-xs text-ink-500">{!configured ? "Connect a map provider to draw the route." : (error ?? emptyHint)}</p>
         </div>
       )}
-      {overlay && <div className="relative flex justify-end p-3">{overlay}</div>}
+      {overlay && <div className="absolute inset-0 flex items-start justify-end p-3">{overlay}</div>}
       {unresolved.length > 0 && (
         <p className="absolute right-3 bottom-3 left-3 flex items-start gap-2 rounded-md bg-amber-50/95 px-3 py-2 text-xs text-amber-900 shadow-sm">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

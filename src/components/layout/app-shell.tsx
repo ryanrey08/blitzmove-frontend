@@ -61,7 +61,8 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
   return (
     <CurrentUserContext.Provider value={user}>
       <div className="min-h-screen">
-        <aside className={cn("fixed inset-y-0 left-0 z-30 hidden w-[17rem] transition-transform lg:block", collapsed && "-translate-x-full")}>
+        {/* Navigation is left out when printing (trip sheets, itineraries). */}
+        <aside className={cn("fixed inset-y-0 left-0 z-30 hidden w-[17rem] transition-transform lg:block print:hidden", collapsed && "-translate-x-full")}>
           {sidebar}
         </aside>
 
@@ -72,7 +73,7 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
           </div>
         )}
 
-        <div className={cn("flex min-h-screen flex-col transition-[padding]", collapsed ? "lg:pl-0" : "lg:pl-[17rem]")}>
+        <div className={cn("flex min-h-screen flex-col transition-[padding] print:pl-0", collapsed ? "lg:pl-0" : "lg:pl-[17rem]")}>
           <Topbar user={user} onMenuClick={toggleMenu} onLogout={logout} />
           <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
         </div>
