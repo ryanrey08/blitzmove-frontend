@@ -1,8 +1,6 @@
-import type { Metadata } from "next";
-import { GpsDashboardView } from "@/features/trips/gps-dashboard-view";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "GPS Live Map" };
-
+/** The live map is the GPS Tracking page itself; keep old links working. */
 export default function Page() {
-  return <GpsDashboardView />;
+  redirect("/transportation/gps-tracking");
 }
