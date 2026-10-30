@@ -1,8 +1,6 @@
-import type { Metadata } from "next";
-import { RouteOptimizationDashboardView } from "@/features/trips/route-optimization-dashboard-view";
+import { redirect } from "next/navigation";
 
-export const metadata: Metadata = { title: "Day Route Planner" };
-
+/** The day planner is the Route Optimization page itself; keep old links working. */
 export default function Page() {
-  return <RouteOptimizationDashboardView />;
+  redirect("/transportation/route-optimization");
 }
