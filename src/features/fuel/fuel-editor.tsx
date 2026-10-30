@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { Calculator, Camera, ChevronRight, ClipboardList, Eye, Fuel, History, ImagePlus, MoreVertical, Pencil, ReceiptText, Save, Trash2, Truck } from "lucide-react";
+import { ArrowLeft, Calculator, Camera, ChevronRight, ClipboardList, Eye, Fuel, History, ImagePlus, MoreVertical, Pencil, ReceiptText, Save, Trash2, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -61,7 +61,7 @@ const schema = z.object({
     .refine((v) => /^\d+$/.test(v), "Whole kilometers only.")
     .refine((v) => Number(v) <= 10_000_000, "That reading is too large."),
   payment_method: z.string().min(1, "Select a payment method."),
-  receipt_number: z.string().trim().max(60),
+  receipt_number: z.string().trim().min(1, "Receipt number is required.").max(60),
   reference_number: z.string().trim().max(60),
   notes: z.string().max(NOTES_LIMIT, `Up to ${NOTES_LIMIT} characters.`),
 });
@@ -293,142 +293,140 @@ function FuelForm({ record, defaultVehicleId }: { record?: FuelRecord; defaultVe
         <Card className="lg:col-span-2 xl:col-span-1">
           <CardHeader title="Transaction Information" icon={<Fuel />} />
           <CardBody className="grid gap-4 sm:grid-cols-2">
-            <Field label="Date & Time" htmlFor="fueled_at" error={errors.fueled_at?.message} required>
-              <Input id="fueled_at" type="datetime-local" max={toDateTimeLocal(new Date())} invalid={!!errors.fueled_at} {...register("fueled_at")} />
-            </Field>
-            <Field label="Fuel Type" htmlFor="fuel_type" error={errors.fuel_type?.message} required>
-              <Select id="fuel_type" options={FUEL_TYPES} invalid={!!errors.fuel_type} {...register("fuel_type")} />
-            </Field>
-
-            <Field label="Vehicle" htmlFor="vehicle_id" error={errors.vehicle_id?.message} required>
-              {/* Remounts once the options load so the saved vehicle is selected. */}
-              <Select
-                key={vehicles.length ? "loaded" : "loading"}
-                id="vehicle_id"
-                options={vehicles.map((v) => ({ value: String(v.id), label: vehicleLabel(v) }))}
-                placeholder="Select vehicle"
-                invalid={!!errors.vehicle_id}
-                {...register("vehicle_id")}
-              />
-            </Field>
-            <Field label="Volume (Liters)" htmlFor="liters" error={errors.liters?.message} required>
-              <Input id="liters" type="number" inputMode="decimal" step="0.01" min={0} placeholder="0.00" invalid={!!errors.liters} {...register("liters")} />
-            </Field>
-
-            <Field label="Driver" htmlFor="driver_id" error={errors.driver_id?.message} required>
-              <div className="relative">
-                {driver && (
-                  <Avatar
-                    name={driver.full_name}
-                    src={driver.photo ? api.url(driver.photo) : null}
-                    size="sm"
-                    className="pointer-events-none absolute top-1/2 left-2 h-6 w-6 -translate-y-1/2 text-[10px]"
+            {/* Two stacks, as in the reference layout; on phones the left stack comes first. */}
+            <div className="space-y-4">
+              <Field label="Date & Time" htmlFor="fueled_at" error={errors.fueled_at?.message} required>
+                <Input id="fueled_at" type="datetime-local" max={toDateTimeLocal(new Date())} invalid={!!errors.fueled_at} {...register("fueled_at")} />
+              </Field>
+              <Field label="Vehicle" htmlFor="vehicle_id" error={errors.vehicle_id?.message} required>
+                {/* Remounts once the options load so the saved vehicle is selected. */}
+                <Select
+                  key={vehicles.length ? "loaded" : "loading"}
+                  id="vehicle_id"
+                  options={vehicles.map((v) => ({ value: String(v.id), label: vehicleLabel(v) }))}
+                  placeholder="Select vehicle"
+                  invalid={!!errors.vehicle_id}
+                  {...register("vehicle_id")}
+                />
+              </Field>
+              <Field label="Driver" htmlFor="driver_id" error={errors.driver_id?.message} required>
+                <div className="relative">
+                  {driver && (
+                    <Avatar
+                      name={driver.full_name}
+                      src={driver.photo ? api.url(driver.photo) : null}
+                      size="sm"
+                      className="pointer-events-none absolute top-1/2 left-2 h-6 w-6 -translate-y-1/2 text-[10px]"
+                    />
+                  )}
+                  <Select
+                    key={drivers.length ? "loaded" : "loading"}
+                    id="driver_id"
+                    className={driver ? "pl-10" : undefined}
+                    options={drivers.map((d) => ({ value: String(d.id), label: d.full_name }))}
+                    placeholder="Select driver"
+                    invalid={!!errors.driver_id}
+                    {...register("driver_id")}
+                  />
+                </div>
+              </Field>
+              <Field label="Fuel Station" htmlFor="station" error={errors.station?.message} required>
+                {customStation ? (
+                  <div className="space-y-1">
+                    <Input id="station" placeholder="e.g. Petron SLEX Southbound" invalid={!!errors.station} {...register("station")} />
+                    {stations.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStationMode("list");
+                          setValue("station", "");
+                        }}
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700"
+                      >
+                        Choose a previous station
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <Select
+                    id="station"
+                    value={values.station}
+                    onChange={(e) => {
+                      if (e.target.value === OTHER_STATION) {
+                        setStationMode("other");
+                        setValue("station", "");
+                      } else {
+                        setStationMode("list");
+                        setValue("station", e.target.value, { shouldValidate: !!errors.station });
+                      }
+                    }}
+                    options={[...stations.map((s) => ({ value: s, label: s })), { value: OTHER_STATION, label: "Other station…" }]}
+                    placeholder={stationsQuery.isLoading ? "Loading stations…" : "Select fuel station"}
+                    invalid={!!errors.station}
                   />
                 )}
-                <Select
-                  key={drivers.length ? "loaded" : "loading"}
-                  id="driver_id"
-                  className={driver ? "pl-10" : undefined}
-                  options={drivers.map((d) => ({ value: String(d.id), label: d.full_name }))}
-                  placeholder="Select driver"
-                  invalid={!!errors.driver_id}
-                  {...register("driver_id")}
-                />
-              </div>
-            </Field>
-            <Field label="Unit Price (₱/L)" htmlFor="price_per_liter" error={errors.price_per_liter?.message} required>
-              <Input id="price_per_liter" type="number" inputMode="decimal" step="0.01" min={0} placeholder="0.00" invalid={!!errors.price_per_liter} {...register("price_per_liter")} />
-            </Field>
-
-            <Field label="Fuel Station" htmlFor="station" error={errors.station?.message} required>
-              {customStation ? (
-                <div className="space-y-1">
-                  <Input id="station" placeholder="e.g. Petron SLEX Southbound" invalid={!!errors.station} {...register("station")} />
-                  {stations.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStationMode("list");
-                        setValue("station", "");
-                      }}
-                      className="text-xs font-medium text-brand-600 hover:text-brand-700"
-                    >
-                      Choose a previous station
-                    </button>
-                  )}
+              </Field>
+              <Field label="Odometer Reading (km)" htmlFor="odometer_km" error={errors.odometer_km?.message} hint={odometerHint} required>
+                <Input id="odometer_km" type="number" inputMode="numeric" step="1" min={0} placeholder="0" invalid={!!errors.odometer_km} {...register("odometer_km")} />
+              </Field>
+              <Field label="Payment Method" htmlFor="payment_method" error={errors.payment_method?.message} required>
+                <Select id="payment_method" options={PAYMENT_METHODS} placeholder="Select payment method" invalid={!!errors.payment_method} {...register("payment_method")} />
+              </Field>
+            </div>
+            <div className="space-y-4">
+              <Field label="Fuel Type" htmlFor="fuel_type" error={errors.fuel_type?.message} required>
+                <Select id="fuel_type" options={FUEL_TYPES} invalid={!!errors.fuel_type} {...register("fuel_type")} />
+              </Field>
+              <Field label="Volume (Liters)" htmlFor="liters" error={errors.liters?.message} required>
+                <Input id="liters" type="number" inputMode="decimal" step="0.01" min={0} placeholder="0.00" invalid={!!errors.liters} {...register("liters")} />
+              </Field>
+              <Field label="Unit Price (₱/L)" htmlFor="price_per_liter" error={errors.price_per_liter?.message} required>
+                <Input id="price_per_liter" type="number" inputMode="decimal" step="0.01" min={0} placeholder="0.00" invalid={!!errors.price_per_liter} {...register("price_per_liter")} />
+              </Field>
+              <Field
+                label="Total Amount (₱)"
+                htmlFor="total_cost"
+                error={totalError}
+                hint={totalMismatch ? "Click the calculator to work out the unit price from this total." : "Volume × unit price, calculated automatically."}
+                required
+              >
+                <div className="flex">
+                  <Input
+                    id="total_cost"
+                    type="number"
+                    inputMode="decimal"
+                    step="0.01"
+                    min={0}
+                    placeholder="0.00"
+                    value={totalShown}
+                    onChange={(e) => setTotalInput(e.target.value)}
+                    invalid={!!totalError}
+                    className="rounded-r-none bg-ink-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={recalculate}
+                    title={totalMismatch ? "Work out the unit price from this total" : "Recalculate total"}
+                    aria-label={totalMismatch ? "Work out the unit price from this total" : "Recalculate total"}
+                    className="flex w-11 shrink-0 items-center justify-center rounded-r-lg border border-l-0 border-ink-200 bg-ink-50 text-ink-700 hover:bg-ink-100"
+                  >
+                    <Calculator className="h-4 w-4" />
+                  </button>
                 </div>
-              ) : (
-                <Select
-                  id="station"
-                  value={values.station}
-                  onChange={(e) => {
-                    if (e.target.value === OTHER_STATION) {
-                      setStationMode("other");
-                      setValue("station", "");
-                    } else {
-                      setStationMode("list");
-                      setValue("station", e.target.value, { shouldValidate: !!errors.station });
-                    }
-                  }}
-                  options={[...stations.map((s) => ({ value: s, label: s })), { value: OTHER_STATION, label: "Other station…" }]}
-                  placeholder={stationsQuery.isLoading ? "Loading stations…" : "Select fuel station"}
-                  invalid={!!errors.station}
-                />
-              )}
-            </Field>
-            <Field
-              label="Total Amount (₱)"
-              htmlFor="total_cost"
-              error={totalError}
-              hint={totalMismatch ? "Click the calculator to work out the unit price from this total." : "Volume × unit price, calculated automatically."}
-              required
-            >
-              <div className="flex gap-2">
-                <Input
-                  id="total_cost"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min={0}
-                  placeholder="0.00"
-                  value={totalShown}
-                  onChange={(e) => setTotalInput(e.target.value)}
-                  invalid={!!totalError}
-                  className="font-semibold"
-                />
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-10 w-10 shrink-0"
-                  onClick={recalculate}
-                  title={totalMismatch ? "Work out the unit price from this total" : "Recalculate total"}
-                  aria-label={totalMismatch ? "Work out the unit price from this total" : "Recalculate total"}
-                >
-                  <Calculator className="h-4 w-4" />
-                </Button>
-              </div>
-            </Field>
-
-            <Field label="Odometer Reading (km)" htmlFor="odometer_km" error={errors.odometer_km?.message} hint={odometerHint} required>
-              <Input id="odometer_km" type="number" inputMode="numeric" step="1" min={0} placeholder="0" invalid={!!errors.odometer_km} {...register("odometer_km")} />
-            </Field>
-            <Field label="Receipt No." htmlFor="receipt_number" error={errors.receipt_number?.message}>
-              <Input id="receipt_number" placeholder="e.g. OR-100234" invalid={!!errors.receipt_number} {...register("receipt_number")} />
-            </Field>
-
-            <Field label="Payment Method" htmlFor="payment_method" error={errors.payment_method?.message} required>
-              <Select id="payment_method" options={PAYMENT_METHODS} placeholder="Select payment method" invalid={!!errors.payment_method} {...register("payment_method")} />
-            </Field>
-            <Field label="Reference No." htmlFor="reference_number" error={errors.reference_number?.message}>
-              <Input id="reference_number" placeholder="e.g. PO No. / Trip No. / Ref No." invalid={!!errors.reference_number} {...register("reference_number")} />
-            </Field>
-
-            <Field label="Remarks" htmlFor="notes" error={errors.notes?.message} className="sm:col-span-2">
-              <Textarea id="notes" rows={3} maxLength={NOTES_LIMIT} placeholder="Anything worth noting about this fill-up" invalid={!!errors.notes} {...register("notes")} />
-              <p className="mt-1 text-right text-xs text-ink-500">
-                {values.notes.length}/{NOTES_LIMIT}
-              </p>
-            </Field>
+              </Field>
+              <Field label="Receipt No." htmlFor="receipt_number" error={errors.receipt_number?.message} required>
+                <Input id="receipt_number" placeholder="e.g. OR-100234" invalid={!!errors.receipt_number} {...register("receipt_number")} />
+              </Field>
+              <Field label="Reference No." htmlFor="reference_number" error={errors.reference_number?.message}>
+                <Input id="reference_number" placeholder="e.g. PO No. / Trip No. / Ref No." invalid={!!errors.reference_number} {...register("reference_number")} />
+              </Field>
+              <Field label="Remarks" htmlFor="notes" error={errors.notes?.message}>
+                <Textarea id="notes" rows={3} maxLength={NOTES_LIMIT} placeholder="Anything worth noting about this fill-up" invalid={!!errors.notes} {...register("notes")} />
+                <p className="mt-1 text-right text-xs text-ink-500">
+                  {values.notes.length}/{NOTES_LIMIT}
+                </p>
+              </Field>
+            </div>
           </CardBody>
         </Card>
 
@@ -484,53 +482,51 @@ function FuelForm({ record, defaultVehicleId }: { record?: FuelRecord; defaultVe
         {/* Live summary */}
         <Card>
           <CardHeader title="Transaction Summary" icon={<ClipboardList />} />
-          <CardBody className="space-y-4">
-            <div className="flex items-center gap-3">
-              {vehicle?.cover_photo ? (
-                // eslint-disable-next-line @next/next/no-img-element -- served by the API
-                <img src={api.url(vehicle.cover_photo)} alt={vehicle.plate_number} className="h-14 w-20 shrink-0 rounded-lg object-cover" />
-              ) : (
-                <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-500">
-                  <Truck className="h-6 w-6" />
-                </span>
-              )}
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-ink-900">{vehicle?.plate_number ?? "No vehicle selected"}</p>
-                {vehicle && <p className="truncate text-sm text-ink-500">{`${vehicle.make} ${vehicle.model}`}</p>}
+          <CardBody className="space-y-3">
+            <SummaryEntity label="Vehicle">
+              <div className="flex items-center gap-3">
+                {vehicle?.cover_photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- served by the API
+                  <img src={api.url(vehicle.cover_photo)} alt={vehicle.plate_number} className="h-12 w-16 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <span className="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-500">
+                    <Truck className="h-6 w-6" />
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-ink-900">{vehicle?.plate_number ?? "—"}</p>
+                  {vehicle && <p className="text-xs text-ink-500">{vehicleLabel(vehicle).split(" - ")[1]}</p>}
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {driver ? <Avatar name={driver.full_name} src={driver.photo ? api.url(driver.photo) : null} size="md" /> : <span className="h-10 w-10 shrink-0 rounded-full bg-ink-100" />}
-              <div className="min-w-0">
-                <p className="text-xs text-ink-500">Driver</p>
-                <p className="truncate text-sm font-medium text-ink-900">{driver?.full_name ?? "—"}</p>
+            </SummaryEntity>
+            <SummaryEntity label="Driver">
+              <div className="flex items-center gap-2">
+                {driver && <Avatar name={driver.full_name} src={driver.photo ? api.url(driver.photo) : null} size="sm" />}
+                <span className="truncate text-sm text-ink-900">{driver?.full_name ?? "—"}</span>
               </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
-                <Fuel className="h-5 w-5" />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs text-ink-500">Fuel Station</p>
-                <p className="truncate text-sm font-medium text-ink-900">{values.station || "—"}</p>
+            </SummaryEntity>
+            <SummaryEntity label="Fuel Station">
+              <div className="flex items-center gap-2">
+                {values.station && (
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand-50 text-brand-600">
+                    <Fuel className="h-4 w-4" />
+                  </span>
+                )}
+                <span className="truncate text-sm text-ink-900">{values.station || "—"}</span>
               </div>
-            </div>
+            </SummaryEntity>
 
-            <dl className="divide-y divide-ink-100 border-t border-ink-100 text-sm">
-              <SummaryRow label="Fuel Type">{labelOf(FUEL_TYPES, values.fuel_type) || "—"}</SummaryRow>
-              <SummaryRow label="Volume">{liters > 0 ? `${formatNumber(liters, 2)} L` : "—"}</SummaryRow>
-              <SummaryRow label="Unit Price">{price > 0 ? `${formatCurrency(price)} / L` : "—"}</SummaryRow>
-              <SummaryRow label="Total Amount">
-                <span className="text-base font-bold text-brand-600">{computed !== null ? formatCurrency(computed) : "—"}</span>
-              </SummaryRow>
-              <SummaryRow label="Odometer">{values.odometer_km ? `${formatNumber(Number(values.odometer_km))} km` : "—"}</SummaryRow>
-              <SummaryRow label="Date & Time">{values.fueled_at ? formatDateTime(new Date(values.fueled_at)) : "—"}</SummaryRow>
-              <SummaryRow label="Payment Method">{labelOf(PAYMENT_METHODS, values.payment_method) || "—"}</SummaryRow>
-              <SummaryRow label="Receipt No.">{values.receipt_number || "—"}</SummaryRow>
-              <SummaryRow label="Reference No.">{values.reference_number || "—"}</SummaryRow>
-              <SummaryRow label="Remarks">
-                <span className="line-clamp-3 break-words">{values.notes || "—"}</span>
-              </SummaryRow>
+            <dl className="space-y-2 border-t border-ink-100 pt-4 text-sm">
+              <SummaryRow label="Fuel Type">{values.fuel_type ? labelOf(FUEL_TYPES, values.fuel_type) : "-"}</SummaryRow>
+              <SummaryRow label="Volume">{liters > 0 ? `${formatNumber(liters, 2)} L` : "-"}</SummaryRow>
+              <SummaryRow label="Unit Price">{price > 0 ? formatCurrency(price) : "-"}</SummaryRow>
+              <SummaryRow label="Total Amount">{computed !== null ? <span className="font-semibold">{formatCurrency(computed)}</span> : "-"}</SummaryRow>
+              <SummaryRow label="Odometer">{values.odometer_km ? `${formatNumber(Number(values.odometer_km))} km` : "-"}</SummaryRow>
+              <SummaryRow label="Date & Time">{values.fueled_at ? formatDateTime(new Date(values.fueled_at)) : "-"}</SummaryRow>
+              <SummaryRow label="Payment Method">{values.payment_method ? labelOf(PAYMENT_METHODS, values.payment_method) : "-"}</SummaryRow>
+              <SummaryRow label="Receipt No.">{values.receipt_number || "-"}</SummaryRow>
+              <SummaryRow label="Reference No.">{values.reference_number || "-"}</SummaryRow>
+              <SummaryRow label="Remarks">{values.notes || "-"}</SummaryRow>
             </dl>
           </CardBody>
         </Card>
@@ -541,7 +537,7 @@ function FuelForm({ record, defaultVehicleId }: { record?: FuelRecord; defaultVe
       {/* Actions */}
       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button variant="secondary" size="lg" onClick={() => router.push(FUEL_PATH)} className="min-w-32">
-          Cancel
+          <ArrowLeft className="h-4 w-4" /> Cancel
         </Button>
         <Button type="submit" size="lg" loading={saving} className="min-w-48">
           <Save className="h-4 w-4" /> {editing ? "Save Changes" : "Save Transaction"}
@@ -551,11 +547,21 @@ function FuelForm({ record, defaultVehicleId }: { record?: FuelRecord; defaultVe
   );
 }
 
+function SummaryEntity({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[6.75rem_minmax(0,1fr)] items-center gap-2">
+      <span className="text-sm text-ink-500">{label}</span>
+      {children}
+    </div>
+  );
+}
+
 function SummaryRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2">
-      <dt className="shrink-0 text-ink-500">{label}</dt>
-      <dd className="min-w-0 text-right font-medium text-ink-900">{children}</dd>
+    <div className="grid grid-cols-[6.75rem_0.75rem_minmax(0,1fr)] items-start">
+      <dt className="whitespace-nowrap text-ink-500">{label}</dt>
+      <span className="text-ink-500">:</span>
+      <dd className="min-w-0 break-words text-ink-900">{children}</dd>
     </div>
   );
 }
