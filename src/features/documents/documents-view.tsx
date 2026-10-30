@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Download, FileText, Pencil, Trash2, Upload } from "lucide-react";
+import { Download, Eye, FileText, Pencil, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -86,6 +86,7 @@ export function DocumentsView() {
           rowKey={(d) => d.id}
           sort={params.sort as string}
           onSortChange={(sort) => update({ sort })}
+          onRowClick={(d) => router.push(`${DOCUMENTS_PATH}/${owner}/${d.id}`)}
           empty={{ title: "No documents", description: "Uploaded documents will be listed here." }}
           columns={[
             {
@@ -115,14 +116,14 @@ export function DocumentsView() {
               cell: (d) => {
                 const [first, ...rest] = d.files ?? [];
                 return first ? (
-                  <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                     <a href={documentsService.fileUrl(first, true)} className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:underline">
                       <Download className="h-4 w-4" />
                       <span className="max-w-32 truncate">{first.original_name}</span>
                       <span className="text-xs text-ink-400">{formatFileSize(first.file_size)}</span>
                     </a>
                     {rest.length > 0 && (
-                      <Link href={`${DOCUMENTS_PATH}/${owner}/${d.id}/edit`} className="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600 hover:bg-ink-200">
+                      <Link href={`${DOCUMENTS_PATH}/${owner}/${d.id}`} className="rounded-full bg-ink-100 px-2 py-0.5 text-xs font-medium text-ink-600 hover:bg-ink-200">
                         +{rest.length}
                       </Link>
                     )}
@@ -135,17 +136,23 @@ export function DocumentsView() {
             {
               key: "actions",
               header: <span className="sr-only">Actions</span>,
-              cell: (d) =>
-                canOperate && (
-                  <span className="flex gap-1">
-                    <button onClick={() => router.push(`${DOCUMENTS_PATH}/${owner}/${d.id}/edit`)} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label={`Edit ${d.title}`}>
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => setDeleting(d)} className="rounded-md p-1.5 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label={`Delete ${d.title}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </span>
-                ),
+              cell: (d) => (
+                <span className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Link href={`${DOCUMENTS_PATH}/${owner}/${d.id}`} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label={`View ${d.title}`} title="View details">
+                    <Eye className="h-4 w-4" />
+                  </Link>
+                  {canOperate && (
+                    <>
+                      <button onClick={() => router.push(`${DOCUMENTS_PATH}/${owner}/${d.id}/edit`)} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label={`Edit ${d.title}`}>
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => setDeleting(d)} className="rounded-md p-1.5 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label={`Delete ${d.title}`}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </span>
+              ),
             },
           ]}
         />

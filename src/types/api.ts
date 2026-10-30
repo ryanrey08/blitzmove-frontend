@@ -73,6 +73,10 @@ export interface Driver {
   trips_count?: number;
   completed_trips_count?: number;
   recent_trips?: Trip[];
+  /** Detail response only. */
+  fuel_records_count?: number;
+  recent_fuel_records?: FuelRecord[];
+  documents?: FleetDocument[];
   created_at: string;
   updated_at: string;
 }

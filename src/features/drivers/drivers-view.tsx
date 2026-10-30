@@ -347,7 +347,7 @@ export function DriversView() {
                         {
                           label: "View details",
                           icon: <Eye />,
-                          onSelect: () => setSelected(d.id),
+                          onSelect: () => router.push(`${DRIVERS_PATH}/${d.id}`),
                         },
                         ...(canManageFleet
                           ? [

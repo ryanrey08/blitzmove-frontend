@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { differenceInYears } from "date-fns";
-import { Ban, CheckCircle2, Clock, IdCard, Pencil, PhoneCall, Truck, X } from "lucide-react";
+import { Ban, CheckCircle2, Clock, IdCard, Maximize2, Pencil, PhoneCall, Truck, X } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Avatar } from "@/components/ui/avatar";
@@ -14,8 +14,8 @@ import { Tabs } from "@/components/ui/tabs";
 import { DRIVER_STATUS, LICENSE_TYPES, TRIP_STATUS, VEHICLE_TYPES, labelOf } from "@/lib/constants";
 import { cn, formatDate } from "@/lib/utils";
 import { api } from "@/services/api-client";
-import { driversService } from "@/services/resources";
-import type { Driver, Trip } from "@/types/api";
+import { driversService, type DriverPerformance } from "@/services/resources";
+import type { Driver, Trip, Vehicle } from "@/types/api";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -77,6 +77,71 @@ function TripsTable({ trips }: { trips: Trip[] }) {
   );
 }
 
+/** A vehicle as a link card to its profile (the driver's regular vehicle here), or a note when there is none. */
+export function AssignedVehicleCard({ vehicle, empty = "No assigned vehicle." }: { vehicle?: Vehicle | null; empty?: string }) {
+  if (!vehicle) return <p className="text-sm text-ink-500">{empty}</p>;
+  const photo = vehicle.cover_photo ?? vehicle.photos?.[0]?.path;
+  return (
+    <Link href={`/fleet/vehicles/${vehicle.id}`} className="flex gap-3 rounded-lg border border-ink-100 p-2.5 hover:border-ink-200">
+      <span className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink-50">
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- served by the API
+          <img src={api.url(photo)} alt={vehicle.plate_number} className="h-full w-full object-cover" />
+        ) : (
+          <Truck className="h-6 w-6 text-ink-300" />
+        )}
+      </span>
+      <span className="min-w-0">
+        <span className="block font-semibold text-ink-900">{vehicle.plate_number}</span>
+        <span className="block truncate text-sm text-ink-600">
+          {vehicle.make} {vehicle.model}
+        </span>
+        <span className="text-xs text-ink-500">{labelOf(VEHICLE_TYPES, vehicle.vehicle_type)}</span>
+      </span>
+    </Link>
+  );
+}
+
+/** A driver as a link card to their profile, or a note when there is none. */
+export function DriverLinkCard({ driver, empty = "No driver recorded." }: { driver?: Driver | null; empty?: string }) {
+  if (!driver) return <p className="text-sm text-ink-500">{empty}</p>;
+  return (
+    <Link href={`/fleet/drivers/${driver.id}`} className="flex items-center gap-3 rounded-lg border border-ink-100 p-2.5 hover:border-ink-200">
+      <Avatar name={driver.full_name} src={driver.photo ? `${api.url(driver.photo)}?v=${driver.updated_at}` : null} size="lg" className="h-14 w-14 shrink-0 rounded-xl text-lg" />
+      <span className="min-w-0">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className="font-semibold text-ink-900">{driver.full_name}</span>
+          <StatusBadge status={driver.status} map={DRIVER_STATUS} dot={false} />
+        </span>
+        <span className="block text-sm text-ink-600">{driver.employee_code}</span>
+        <span className="text-xs text-ink-500">{driver.phone}</span>
+      </span>
+    </Link>
+  );
+}
+
+/** Last-30-day figures from trip records. */
+export function PerformanceTiles({ performance }: { performance?: DriverPerformance }) {
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { icon: CheckCircle2, tone: "text-emerald-600", value: performance?.completed_trips ?? 0, label: "Completed trips" },
+          { icon: Clock, tone: "text-sky-600", value: performance?.on_time_rate != null ? `${performance.on_time_rate}%` : "—", label: "On-time arrival" },
+          { icon: Ban, tone: "text-brand-600", value: performance?.cancelled_trips ?? 0, label: "Cancelled trips" },
+        ].map((m) => (
+          <div key={m.label} className="rounded-lg bg-ink-50 p-3">
+            <m.icon className={cn("mb-1 h-5 w-5", m.tone)} />
+            <p className="text-xl font-bold text-ink-900">{m.value}</p>
+            <p className="text-xs text-ink-500">{m.label}</p>
+          </div>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-ink-400">From trip records. Ratings and incidents aren&apos;t tracked.</p>
+    </>
+  );
+}
+
 /** Driver detail side panel, as in the Driver Management reference. */
 export function DriverPanel({ id, onClose, onEdit, canEdit }: { id: number; onClose: () => void; onEdit: (d: Driver) => void; canEdit: boolean }) {
   const [tab, setTab] = useState<"overview" | "trips">("overview");
@@ -101,7 +166,6 @@ export function DriverPanel({ id, onClose, onEdit, canEdit }: { id: number; onCl
     );
 
   const vehicle = d.assigned_vehicle;
-  const vehiclePhoto = vehicle?.cover_photo ?? vehicle?.photos?.[0]?.path;
   const trips = d.recent_trips ?? [];
 
   return (
@@ -112,6 +176,9 @@ export function DriverPanel({ id, onClose, onEdit, canEdit }: { id: number; onCl
           <StatusBadge status={d.status} map={DRIVER_STATUS} dot={false} />
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <Link href={`/fleet/drivers/${d.id}`} className="rounded-md p-1.5 text-ink-400 hover:bg-ink-100 hover:text-ink-700" aria-label="Open full driver profile" title="Open full profile">
+            <Maximize2 className="h-4 w-4" />
+          </Link>
           {canEdit && (
             <Button variant="secondary" size="sm" onClick={() => onEdit(d)}>
               <Pencil className="h-3.5 w-3.5" /> Edit Driver
@@ -163,27 +230,7 @@ export function DriverPanel({ id, onClose, onEdit, canEdit }: { id: number; onCl
               <Row label="Restrictions" value={d.license_restrictions} />
             </Section>
             <Section title="Assigned Vehicle" icon={<Truck />}>
-              {vehicle ? (
-                <Link href={`/fleet/vehicles/${vehicle.id}`} className="flex gap-3 rounded-lg border border-ink-100 p-2.5 hover:border-ink-200">
-                  <span className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-ink-50">
-                    {vehiclePhoto ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- served by the API
-                      <img src={api.url(vehiclePhoto)} alt={vehicle.plate_number} className="h-full w-full object-cover" />
-                    ) : (
-                      <Truck className="h-6 w-6 text-ink-300" />
-                    )}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold text-ink-900">{vehicle.plate_number}</span>
-                    <span className="block truncate text-sm text-ink-600">
-                      {vehicle.make} {vehicle.model}
-                    </span>
-                    <span className="text-xs text-ink-500">{labelOf(VEHICLE_TYPES, vehicle.vehicle_type)}</span>
-                  </span>
-                </Link>
-              ) : (
-                <p className="text-sm text-ink-500">No assigned vehicle.</p>
-              )}
+              <AssignedVehicleCard vehicle={vehicle} />
             </Section>
           </div>
 
@@ -196,35 +243,7 @@ export function DriverPanel({ id, onClose, onEdit, canEdit }: { id: number; onCl
           )}
 
           <Section title="Performance (Last 30 Days)">
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                {
-                  icon: CheckCircle2,
-                  tone: "text-emerald-600",
-                  value: performance?.completed_trips ?? 0,
-                  label: "Completed trips",
-                },
-                {
-                  icon: Clock,
-                  tone: "text-sky-600",
-                  value: performance?.on_time_rate != null ? `${performance.on_time_rate}%` : "—",
-                  label: "On-time arrival",
-                },
-                {
-                  icon: Ban,
-                  tone: "text-brand-600",
-                  value: performance?.cancelled_trips ?? 0,
-                  label: "Cancelled trips",
-                },
-              ].map((m) => (
-                <div key={m.label} className="rounded-lg bg-ink-50 p-3">
-                  <m.icon className={cn("mb-1 h-5 w-5", m.tone)} />
-                  <p className="text-xl font-bold text-ink-900">{m.value}</p>
-                  <p className="text-xs text-ink-500">{m.label}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-ink-400">From trip records. Ratings and incidents aren&apos;t tracked.</p>
+            <PerformanceTiles performance={performance} />
           </Section>
 
           <Section

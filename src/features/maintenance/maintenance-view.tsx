@@ -122,7 +122,7 @@ export function MaintenanceView() {
 
   const edit = (r: MaintenanceRecord) => router.push(`${MAINTENANCE_PATH}/${r.id}/edit`);
   const actionsFor = (r: MaintenanceRecord): DropdownItem[] => [
-    { label: "View details", icon: <Eye />, onSelect: () => setSelected(r.id) },
+    { label: "View details", icon: <Eye />, onSelect: () => router.push(`${MAINTENANCE_PATH}/${r.id}`) },
     ...(canOperate
       ? [
           { label: "Edit", icon: <Pencil />, onSelect: () => edit(r) },

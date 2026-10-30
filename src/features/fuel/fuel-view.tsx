@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Banknote, Droplets, Fuel, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
+import { Banknote, Droplets, Eye, Fuel, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -76,6 +76,7 @@ export function FuelView() {
           rowKey={(r) => r.id}
           sort={params.sort as string}
           onSortChange={(sort) => update({ sort })}
+          onRowClick={(r) => router.push(`${FUEL_PATH}/${r.id}`)}
           empty={{ title: "No fuel records", description: "Fuel purchases you log will appear here." }}
           columns={[
             { key: "date", header: "Date", sortKey: "fueled_at", cell: (r) => <span className="whitespace-nowrap">{formatDateTime(r.fueled_at)}</span> },
@@ -84,7 +85,7 @@ export function FuelView() {
               header: "Vehicle",
               cell: (r) =>
                 r.vehicle ? (
-                  <Link href={`/fleet/vehicles/${r.vehicle.id}`} className="font-medium text-ink-900 hover:text-brand-600">
+                  <Link href={`/fleet/vehicles/${r.vehicle.id}`} onClick={(e) => e.stopPropagation()} className="font-medium text-ink-900 hover:text-brand-600">
                     {r.vehicle.plate_number}
                   </Link>
                 ) : (
@@ -101,17 +102,23 @@ export function FuelView() {
             {
               key: "actions",
               header: <span className="sr-only">Actions</span>,
-              cell: (r) =>
-                canOperate && (
-                  <span className="flex gap-1">
-                    <button onClick={() => router.push(`${FUEL_PATH}/${r.id}/edit`)} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label="Edit fuel record">
-                      <Pencil className="h-4 w-4" />
-                    </button>
-                    <button onClick={() => setDeleting(r)} className="rounded-md p-1.5 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="Delete fuel record">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </span>
-                ),
+              cell: (r) => (
+                <span className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Link href={`${FUEL_PATH}/${r.id}`} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label="View fuel record" title="View details">
+                    <Eye className="h-4 w-4" />
+                  </Link>
+                  {canOperate && (
+                    <>
+                      <button onClick={() => router.push(`${FUEL_PATH}/${r.id}/edit`)} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label="Edit fuel record">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button onClick={() => setDeleting(r)} className="rounded-md p-1.5 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="Delete fuel record">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </span>
+              ),
             },
           ]}
         />

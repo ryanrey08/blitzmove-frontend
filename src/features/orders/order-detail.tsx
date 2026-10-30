@@ -20,7 +20,7 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   return (
     <div className="grid grid-cols-[9rem_1fr] gap-3 py-1.5 text-sm">
       <dt className="text-ink-500">{label}</dt>
-      <dd className="text-ink-900">{children ?? "—"}</dd>
+      <dd className="min-w-0 break-words text-ink-900">{children ?? "—"}</dd>
     </div>
   );
 }

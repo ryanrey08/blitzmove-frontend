@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardCheck, ClipboardList, Download, Eye, FileText, Pencil, Truck, X } from "lucide-react";
+import { ClipboardCheck, ClipboardList, Download, Eye, FileText, Maximize2, Pencil, Truck, X } from "lucide-react";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { cn, formatCurrency, formatDate, formatFileSize, formatNumber } from "@/
 import { api } from "@/services/api-client";
 import { maintenanceService } from "@/services/resources";
 import type { MaintenanceRecord } from "@/types/api";
-import { DESCRIPTION_LIMIT } from "./maintenance-editor";
+import { DESCRIPTION_LIMIT, MAINTENANCE_PATH } from "./maintenance-editor";
 
 type Tab = "details" | "history" | "costs" | "documents";
 
@@ -31,6 +32,9 @@ export function MaintenancePanel({ id, canEdit, onEdit, onClose }: { id: number;
           <ClipboardList className="h-5 w-5" /> Maintenance Details
         </h2>
         <div className="flex items-center gap-1">
+          <Link href={`${MAINTENANCE_PATH}/${id}`} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-900" aria-label="Open full maintenance details" title="Open full page">
+            <Maximize2 className="h-4 w-4" />
+          </Link>
           {canEdit && r && (
             <Button size="sm" onClick={() => onEdit(r)}>
               <Pencil className="h-3.5 w-3.5" /> Edit
@@ -69,7 +73,7 @@ export function MaintenancePanel({ id, canEdit, onEdit, onClose }: { id: number;
   );
 }
 
-function VehicleSummary({ record: r }: { record: MaintenanceRecord }) {
+export function VehicleSummary({ record: r }: { record: MaintenanceRecord }) {
   const v = r.vehicle;
   const body = v ? labelOf(BODY_TYPES, v.body_type ?? "") || labelOf(VEHICLE_TYPES, v.vehicle_type) : null;
   return (
@@ -122,7 +126,7 @@ function Value({ label, children, className }: { label: string; children: ReactN
   );
 }
 
-function Details({ record: r, canEdit }: { record: MaintenanceRecord; canEdit: boolean }) {
+export function Details({ record: r, canEdit }: { record: MaintenanceRecord; canEdit: boolean }) {
   const [checklist, setChecklist] = useState(r.checklist);
   const save = useApiMutation((next: MaintenanceRecord["checklist"]) => maintenanceService.patch(r.id, { checklist: next }), {
     invalidate: [["maintenance"]],
@@ -195,7 +199,7 @@ function Details({ record: r, canEdit }: { record: MaintenanceRecord; canEdit: b
   );
 }
 
-function History({ record: r }: { record: MaintenanceRecord }) {
+export function History({ record: r }: { record: MaintenanceRecord }) {
   const history = useQuery({
     queryKey: ["maintenance", "history", r.vehicle_id],
     queryFn: () => maintenanceService.list({ vehicle_id: r.vehicle_id, per_page: 15, sort: "-scheduled_date" }),
@@ -230,7 +234,7 @@ function History({ record: r }: { record: MaintenanceRecord }) {
   );
 }
 
-function Costs({ record: r }: { record: MaintenanceRecord }) {
+export function Costs({ record: r }: { record: MaintenanceRecord }) {
   const variance = r.actual_cost !== null && r.estimated_cost !== null ? r.actual_cost - r.estimated_cost : null;
   return (
     <div className="space-y-4">
@@ -275,7 +279,7 @@ function Costs({ record: r }: { record: MaintenanceRecord }) {
   );
 }
 
-function Documents({ record: r }: { record: MaintenanceRecord }) {
+export function Documents({ record: r }: { record: MaintenanceRecord }) {
   const files = r.files ?? [];
   if (!files.length) return <p className="text-sm text-ink-500">No receipts or documents attached. Add them from Edit.</p>;
   return (
