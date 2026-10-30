@@ -22,6 +22,8 @@ import {
   SlidersHorizontal,
   Trash2,
   TriangleAlert,
+  Truck,
+  Users,
   Wrench,
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +47,7 @@ import { useListParams } from "@/hooks/use-list-params";
 import { MAINTENANCE_CATEGORIES, MAINTENANCE_STATUS, MAINTENANCE_TYPES, labelOf, statusOptions } from "@/lib/constants";
 import { exportCsv, fetchAllPages } from "@/lib/export";
 import { cn, formatDate } from "@/lib/utils";
+import { api } from "@/services/api-client";
 import { maintenanceService } from "@/services/resources";
 import type { ListParams, MaintenanceRecord, MaintenanceSummary } from "@/types/api";
 import { useFleetOptions } from "../fuel/use-fleet-options";
@@ -52,11 +55,11 @@ import { MAINTENANCE_PATH } from "./maintenance-editor";
 import { MaintenancePanel } from "./maintenance-panel";
 
 const CARDS: { key: keyof MaintenanceSummary; filter: string; label: string; icon: LucideIcon; tone: string; upIsBad?: boolean }[] = [
-  { key: "total", filter: "", label: "Total Maintenance", icon: Wrench, tone: "bg-brand-50 text-brand-600" },
-  { key: "upcoming", filter: "upcoming", label: "Upcoming", icon: CalendarClock, tone: "bg-sky-50 text-sky-600" },
-  { key: "overdue", filter: "overdue", label: "Overdue", icon: TriangleAlert, tone: "bg-red-50 text-red-600", upIsBad: true },
-  { key: "completed_this_month", filter: "completed", label: "Completed (This Month)", icon: CircleCheck, tone: "bg-emerald-50 text-emerald-600" },
-  { key: "in_progress", filter: "in_progress", label: "In Progress", icon: Settings2, tone: "bg-violet-50 text-violet-600" },
+  { key: "total", filter: "", label: "Total Maintenance", icon: Wrench, tone: "bg-brand-600 text-white" },
+  { key: "upcoming", filter: "upcoming", label: "Upcoming", icon: CalendarClock, tone: "bg-sky-500 text-white" },
+  { key: "overdue", filter: "overdue", label: "Overdue", icon: TriangleAlert, tone: "bg-red-600 text-white", upIsBad: true },
+  { key: "completed_this_month", filter: "completed", label: "Completed (This Month)", icon: CircleCheck, tone: "bg-emerald-500 text-white" },
+  { key: "in_progress", filter: "in_progress", label: "In Progress", icon: Settings2, tone: "bg-sky-500 text-white" },
 ];
 
 const SORTS = [
@@ -68,9 +71,9 @@ const SORTS = [
 ];
 
 const TABS = [
-  { href: "/fleet/vehicles", label: "Vehicles" },
-  { href: "/fleet/drivers", label: "Drivers" },
-  { href: MAINTENANCE_PATH, label: "Maintenance" },
+  { href: "/fleet/vehicles", label: "Vehicles", icon: Truck },
+  { href: "/fleet/drivers", label: "Drivers", icon: Users },
+  { href: MAINTENANCE_PATH, label: "Maintenance", icon: Wrench },
 ];
 
 const vehicleName = (r: MaintenanceRecord) => (r.vehicle ? `${r.vehicle.make} ${r.vehicle.model}`.trim() : "—");
@@ -182,11 +185,6 @@ export function MaintenanceView() {
   return (
     <>
       {/* Header */}
-      <nav aria-label="Breadcrumb" className="mb-2 flex items-center gap-1.5 text-sm text-ink-500">
-        <span>Fleet &amp; Drivers</span>
-        <ChevronRight className="h-4 w-4" />
-        <span className="font-medium text-ink-900">Maintenance</span>
-      </nav>
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">Fleet and Drivers</h1>
@@ -204,7 +202,7 @@ export function MaintenanceView() {
         </div>
       </div>
 
-      <div className="mb-5 flex gap-1 overflow-x-auto border-b border-ink-100">
+      <div className="mb-4 flex gap-1 overflow-x-auto">
         {TABS.map((tab) => {
           const active = tab.href === MAINTENANCE_PATH;
           return (
@@ -213,10 +211,11 @@ export function MaintenanceView() {
               href={tab.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "-mb-px border-b-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition",
-                active ? "border-brand-600 text-brand-600" : "border-transparent text-ink-500 hover:text-ink-800",
+                "flex min-w-36 items-center justify-center gap-2 rounded-t-lg px-6 py-3 text-sm font-medium whitespace-nowrap transition",
+                active ? "bg-brand-600 text-white shadow-sm" : "bg-white text-ink-700 shadow-card hover:text-ink-900",
               )}
             >
+              <tab.icon className="h-4 w-4" />
               {tab.label}
             </Link>
           );
@@ -239,12 +238,12 @@ export function MaintenanceView() {
                 active ? "border-brand-300 ring-2 ring-brand-100" : "border-ink-100",
               )}
             >
-              <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", card.tone)}>
+              <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl shadow-sm", card.tone)}>
                 <card.icon className="h-6 w-6" />
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium text-ink-600">{card.label}</span>
-                {stat ? <span className="block text-2xl font-bold text-ink-900">{stat.count}</span> : <span className="mt-1 block h-7 w-12 animate-pulse rounded bg-ink-100" />}
+                {stat ? <span className="block text-[1.7rem] leading-tight font-bold text-ink-900">{stat.count}</span> : <span className="mt-1 block h-7 w-12 animate-pulse rounded bg-ink-100" />}
                 {stat && <Delta {...stat} upIsBad={card.upIsBad} />}
               </span>
             </button>
@@ -286,10 +285,14 @@ export function MaintenanceView() {
         </Card>
       )}
 
-      <div className={cn("grid gap-5", panel && "2xl:grid-cols-[minmax(0,1fr)_400px]")}>
-        <Card className="min-w-0">
+      <div className={cn("grid gap-5", panel && "2xl:grid-cols-[minmax(0,1fr)_370px]")}>
+        <Card className="min-w-0 [&_td]:text-[13px] [&_th]:text-xs">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-100 px-5 py-3.5">
-            <h2 className="text-base font-semibold text-ink-900">Maintenance Schedule</h2>
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-ink-900">
+              <CalendarDays className="h-5 w-5" /> Maintenance Schedule
+            </h2>
+            <div className="flex items-center gap-2">
+            <span className="text-sm text-ink-600">View:</span>
             <div className="flex rounded-lg border border-ink-200 p-0.5" role="group" aria-label="Schedule view">
               {(
                 [
@@ -310,6 +313,7 @@ export function MaintenanceView() {
                   <Icon className="h-4 w-4" /> {label}
                 </button>
               ))}
+            </div>
             </div>
           </div>
 
@@ -341,23 +345,44 @@ export function MaintenanceView() {
                     : { title: "No maintenance scheduled yet", description: "Schedule a service with New Maintenance." }
                 }
                 columns={[
-                  { key: "n", header: "#", className: "text-ink-500 tabular-nums", cell: (r) => offset + (rows?.indexOf(r) ?? 0) + 1 },
-                  { key: "plate", header: "Plate No.", cell: (r) => <span className="font-semibold whitespace-nowrap text-ink-900">{r.vehicle?.plate_number ?? "—"}</span> },
-                  { key: "vehicle", header: "Vehicle", cell: (r) => <span className="block min-w-28">{vehicleName(r)}</span> },
+                  { key: "n", header: "#", className: "px-3 text-ink-500 tabular-nums", headerClassName: "px-3", cell: (r) => offset + (rows?.indexOf(r) ?? 0) + 1 },
                   {
-                    key: "type",
-                    header: "Service Type",
+                    key: "plate",
+                    header: "Plate No.",
+                    className: "px-3",
+                    headerClassName: "px-3",
                     cell: (r) => (
-                      <span>
-                        <span className="block whitespace-nowrap text-ink-900">{labelOf(MAINTENANCE_TYPES, r.service_type)}</span>
-                        <span className="text-xs text-ink-500">{r.reference_number}</span>
+                      <span className="flex items-center gap-2.5">
+                        <span className="font-semibold whitespace-nowrap text-ink-900">{r.vehicle?.plate_number ?? "—"}</span>
+                        {r.vehicle?.cover_photo ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- served by the API
+                          <img src={api.url(r.vehicle.cover_photo)} alt="" className="h-6 w-9 shrink-0 rounded object-cover" />
+                        ) : (
+                          <span className="flex h-6 w-9 shrink-0 items-center justify-center rounded bg-ink-100 text-ink-400">
+                            <Truck className="h-4 w-4" />
+                          </span>
+                        )}
                       </span>
                     ),
                   },
-                  { key: "last", header: "Last Service", cell: (r) => <span className="whitespace-nowrap">{formatDate(r.last_service_date)}</span> },
+                  { key: "vehicle", header: "Vehicle", className: "px-3 whitespace-normal", headerClassName: "px-3", cell: (r) => <span className="block min-w-20">{vehicleName(r)}</span> },
+                  {
+                    key: "type",
+                    header: "Service Type",
+                    className: "px-3 whitespace-normal",
+                    headerClassName: "px-3",
+                    cell: (r) => (
+                      <span className="block max-w-32 min-w-20 text-ink-900" title={r.reference_number}>
+                        {labelOf(MAINTENANCE_TYPES, r.service_type)}
+                      </span>
+                    ),
+                  },
+                  { key: "last", header: "Last Service", className: "px-3", headerClassName: "px-3", cell: (r) => <span className="whitespace-nowrap">{formatDate(r.last_service_date)}</span> },
                   {
                     key: "due",
                     header: "Next Due",
+                    className: "px-3",
+                    headerClassName: "px-3",
                     sortKey: "scheduled_date",
                     cell: (r) =>
                       r.status === "completed" ? (
@@ -366,13 +391,13 @@ export function MaintenanceView() {
                         <span className={cn("whitespace-nowrap", r.display_status === "overdue" && "font-medium text-red-700")}>{formatDate(r.scheduled_date)}</span>
                       ),
                   },
-                  { key: "status", header: "Status", cell: (r) => <StatusBadge status={r.display_status} map={MAINTENANCE_STATUS} dot={false} /> },
-                  { key: "assigned", header: "Assigned To", cell: (r) => <span className="whitespace-nowrap">{r.assigned_to ?? <span className="text-ink-400">—</span>}</span> },
+                  { key: "status", header: "Status", className: "px-3", headerClassName: "px-3", cell: (r) => <StatusBadge status={r.display_status} map={MAINTENANCE_STATUS} dot={false} /> },
+                  { key: "assigned", header: "Assigned To", className: "px-3 whitespace-normal", headerClassName: "px-3", cell: (r) => <span className="block min-w-20">{r.assigned_to ?? r.service_provider ?? <span className="text-ink-400">—</span>}</span> },
                   {
                     key: "actions",
                     header: "Actions",
-                    headerClassName: "sticky right-0 bg-ink-50 text-center",
-                    className: "sticky right-0 bg-white text-center shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
+                    headerClassName: "sticky right-0 bg-ink-50 px-2 text-center",
+                    className: "sticky right-0 bg-white px-2 text-center shadow-[-8px_0_8px_-8px_rgba(0,0,0,0.12)]",
                     cell: (r) => (
                       <div onClick={(e) => e.stopPropagation()}>
                         <Dropdown
@@ -419,15 +444,18 @@ export function MaintenanceView() {
 
 /** "↑ 15% vs. last month"; for overdue work a rise is bad news, so it shows in red. */
 function Delta({ count, previous, upIsBad }: { count: number; previous: number; upIsBad?: boolean }) {
-  if (count === previous) return <span className="block text-xs text-ink-500">0% vs. last month</span>;
   const up = count > previous;
   const good = up !== !!upIsBad;
   return (
-    <span className="block text-xs text-ink-500">
-      <span className={cn("inline-flex items-center gap-0.5 font-semibold", good ? "text-emerald-600" : "text-brand-600")}>
-        {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-        {previous ? `${Math.round((Math.abs(count - previous) / previous) * 100)}%` : `${count - previous} new`}
-      </span>{" "}
+    <span className="mt-0.5 block text-xs text-ink-500">
+      {count === previous ? (
+        <span className="block text-sm font-medium text-ink-500">0%</span>
+      ) : (
+        <span className={cn("flex items-center gap-0.5 text-sm font-semibold", good ? "text-emerald-600" : "text-brand-600")}>
+          {up ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
+          {previous ? `${Math.round((Math.abs(count - previous) / previous) * 100)}%` : `${count - previous} new`}
+        </span>
+      )}
       vs. last month
     </span>
   );

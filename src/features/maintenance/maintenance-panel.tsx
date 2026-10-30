@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Download, Eye, FileText, Pencil, Truck, X } from "lucide-react";
+import { ClipboardCheck, ClipboardList, Download, Eye, FileText, Pencil, Truck, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { StatusBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 import { Tabs } from "@/components/ui/tabs";
 import { useApiMutation } from "@/hooks/use-api-mutation";
-import { MAINTENANCE_CATEGORIES, MAINTENANCE_REMINDERS, MAINTENANCE_STATUS, MAINTENANCE_TYPES, VEHICLE_STATUS, labelOf } from "@/lib/constants";
+import { BODY_TYPES, MAINTENANCE_CATEGORIES, MAINTENANCE_REMINDERS, MAINTENANCE_STATUS, MAINTENANCE_TYPES, VEHICLE_STATUS, VEHICLE_TYPES, labelOf } from "@/lib/constants";
 import { cn, formatCurrency, formatDate, formatFileSize, formatNumber } from "@/lib/utils";
 import { api } from "@/services/api-client";
 import { maintenanceService } from "@/services/resources";
@@ -27,7 +27,9 @@ export function MaintenancePanel({ id, canEdit, onEdit, onClose }: { id: number;
   return (
     <Card className="min-w-0 self-start">
       <div className="flex items-center justify-between gap-2 border-b border-ink-100 px-5 py-3.5">
-        <h2 className="text-base font-semibold text-ink-900">Maintenance Details</h2>
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-ink-900">
+          <ClipboardList className="h-5 w-5" /> Maintenance Details
+        </h2>
         <div className="flex items-center gap-1">
           {canEdit && r && (
             <Button size="sm" onClick={() => onEdit(r)}>
@@ -69,39 +71,43 @@ export function MaintenancePanel({ id, canEdit, onEdit, onClose }: { id: number;
 
 function VehicleSummary({ record: r }: { record: MaintenanceRecord }) {
   const v = r.vehicle;
+  const body = v ? labelOf(BODY_TYPES, v.body_type ?? "") || labelOf(VEHICLE_TYPES, v.vehicle_type) : null;
   return (
     <div className="flex gap-4">
       {v?.cover_photo ? (
         // eslint-disable-next-line @next/next/no-img-element -- served by the API
-        <img src={api.url(v.cover_photo)} alt={v.plate_number} className="h-20 w-28 shrink-0 rounded-lg object-cover" />
+        <img src={api.url(v.cover_photo)} alt={v.plate_number} className="h-28 w-36 shrink-0 rounded-lg object-cover" />
       ) : (
-        <span className="flex h-20 w-28 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-500">
-          <Truck className="h-8 w-8" />
+        <span className="flex h-28 w-36 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-500">
+          <Truck className="h-10 w-10" />
         </span>
       )}
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-lg font-bold text-ink-900">{v?.plate_number ?? "—"}</p>
-          {v && <StatusBadge status={v.status} map={VEHICLE_STATUS} dot={false} />}
+          <p className="text-xl font-bold text-ink-900">{v?.plate_number ?? "—"}</p>
+          {v && <StatusBadge status={v.status} map={VEHICLE_STATUS} />}
         </div>
-        <p className="truncate text-sm text-ink-600">{v ? `${v.make} ${v.model}` : "—"}</p>
-        <dl className="mt-1.5 grid grid-cols-3 gap-2 text-xs">
-          <div>
-            <dt className="text-ink-500">Year</dt>
-            <dd className="font-medium text-ink-900">{v?.year ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-500">Mileage</dt>
-            <dd className="font-medium whitespace-nowrap text-ink-900">{v?.odometer_km ? `${formatNumber(v.odometer_km)} km` : "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-500">Next Due</dt>
-            <dd className={cn("font-medium whitespace-nowrap", r.display_status === "overdue" ? "text-red-700" : "text-ink-900")}>
+        <p className="truncate text-sm text-ink-700">{v ? `${v.make} ${v.model}${body ? ` (${body})` : ""}` : "—"}</p>
+        <dl className="mt-2 space-y-0.5 text-sm">
+          <SpecRow label="Year">{v?.year ?? "—"}</SpecRow>
+          <SpecRow label="Mileage">{v?.odometer_km ? `${formatNumber(v.odometer_km)} km` : "—"}</SpecRow>
+          <SpecRow label="Next Due">
+            <span className={cn("font-medium", r.display_status === "overdue" && "text-red-700")}>
               {r.status === "completed" || r.status === "cancelled" ? "—" : formatDate(r.scheduled_date)}
-            </dd>
-          </div>
+            </span>
+          </SpecRow>
         </dl>
       </div>
+    </div>
+  );
+}
+
+function SpecRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[4.5rem_0.75rem_minmax(0,1fr)]">
+      <dt className="text-ink-500">{label}</dt>
+      <span className="text-ink-500">:</span>
+      <dd className="whitespace-nowrap text-ink-900">{children}</dd>
     </div>
   );
 }
@@ -111,7 +117,7 @@ function Value({ label, children, className }: { label: string; children: ReactN
   return (
     <div className={className}>
       <p className="mb-1 text-xs font-medium text-ink-600">{label}</p>
-      <div className="min-h-10 rounded-lg border border-ink-200 bg-ink-50/60 px-3 py-2 text-sm break-words text-ink-900">{children}</div>
+      <div className="min-h-10 rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm break-words text-ink-900">{children}</div>
     </div>
   );
 }
@@ -132,28 +138,39 @@ function Details({ record: r, canEdit }: { record: MaintenanceRecord; canEdit: b
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Value label="Service Type">{labelOf(MAINTENANCE_TYPES, r.service_type)}</Value>
-        <Value label="Schedule Date">{formatDate(r.scheduled_date)}</Value>
-        <Value label="Assigned To">{r.assigned_to || "—"}</Value>
-        <Value label="Estimated Cost (₱)">{r.estimated_cost !== null ? formatNumber(r.estimated_cost, 2) : "—"}</Value>
-        <Value label="Status">
-          <StatusBadge status={r.display_status} map={MAINTENANCE_STATUS} dot={false} />
-        </Value>
-        <Value label="Category">{labelOf(MAINTENANCE_CATEGORIES, r.category)}</Value>
-        <Value label="Description" className="sm:col-span-2">
-          <p className="whitespace-pre-line">{r.description || "—"}</p>
-          <p className="mt-1 text-right text-xs text-ink-500">
-            {r.description?.length ?? 0}/{DESCRIPTION_LIMIT}
-          </p>
-        </Value>
-        <Value label="Reminder">{r.reminder_days ? labelOf(MAINTENANCE_REMINDERS, String(r.reminder_days)) : "No reminder"}</Value>
-        <Value label="Reference No.">{r.reference_number}</Value>
-        {r.service_provider && <Value label="Service Provider" className="sm:col-span-2">{r.service_provider}</Value>}
+        <div className="space-y-3">
+          <Value label="Service Type">{labelOf(MAINTENANCE_TYPES, r.service_type)}</Value>
+          <Value label="Schedule Date">{formatDate(r.scheduled_date, "MMM dd, yyyy")}</Value>
+          <Value label="Assigned To">{r.assigned_to || r.service_provider || "—"}</Value>
+          <Value label="Estimated Cost">{formatCurrency(r.estimated_cost)}</Value>
+          <div>
+            <p className="mb-1 text-xs font-medium text-ink-600">Status</p>
+            <StatusBadge status={r.display_status} map={MAINTENANCE_STATUS} />
+          </div>
+        </div>
+        <div className="space-y-3">
+          <Value label="Description">
+            <p className="min-h-24 whitespace-pre-line">{r.description || "—"}</p>
+            <p className="mt-1 text-right text-xs text-ink-500">
+              {r.description?.length ?? 0}/{DESCRIPTION_LIMIT}
+            </p>
+          </Value>
+          <Value label="Reminder">{r.reminder_days ? labelOf(MAINTENANCE_REMINDERS, String(r.reminder_days)) : "No reminder"}</Value>
+          <Value label="Category">{labelOf(MAINTENANCE_CATEGORIES, r.category)}</Value>
+          <Value label="Reference No.">{r.reference_number}</Value>
+        </div>
+        {r.service_provider && r.assigned_to && (
+          <Value label="Service Provider" className="sm:col-span-2">
+            {r.service_provider}
+          </Value>
+        )}
       </div>
 
-      <section>
+      <section className="border-t border-ink-100 pt-4">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-ink-900">Service Checklist</h3>
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+            <ClipboardCheck className="h-4 w-4" /> Service Checklist
+          </h3>
           {checklist.length > 0 && (
             <span className="text-xs text-ink-500">
               {done}/{checklist.length} done
