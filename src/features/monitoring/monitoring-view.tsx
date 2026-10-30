@@ -26,6 +26,7 @@ import {
   SkipForward,
   SlidersHorizontal,
   Truck,
+  User,
   X,
   XCircle,
   type LucideIcon,
@@ -50,7 +51,7 @@ const STALE_MINUTES = 15;
 /** At or below this speed a vehicle counts as stopped. */
 const MOVING_KPH = 3;
 
-type FleetStatus = "on_trip" | "delayed" | "idle" | "offline" | "no_signal";
+type FleetStatus = "on_trip" | "delayed" | "idle" | "maintenance" | "offline" | "no_signal";
 
 /**
  * Trip state comes from trip records, so a vehicle on a dispatched trip shows On Trip even before its
@@ -60,6 +61,7 @@ const STATUS: Record<FleetStatus, { label: string; tone: Tone; color: string }> 
   on_trip: { label: "On Trip", tone: "green", color: "#16a34a" },
   delayed: { label: "Delayed", tone: "amber", color: "#f59e0b" },
   idle: { label: "Idle", tone: "gray", color: "#667085" },
+  maintenance: { label: "Maintenance", tone: "violet", color: "#7c3aed" },
   offline: { label: "Offline", tone: "red", color: "#e30613" },
   no_signal: { label: "No Signal", tone: "gray", color: "#98a2b3" },
 };
@@ -68,13 +70,15 @@ const TABS: { key: string; label: string; match: FleetStatus[] }[] = [
   { key: "", label: "All", match: [] },
   { key: "on_trip", label: "On Trip", match: ["on_trip", "delayed"] },
   { key: "idle", label: "Idle", match: ["idle"] },
-  { key: "offline", label: "Offline", match: ["offline", "no_signal"] },
+  { key: "offline", label: "Offline", match: ["offline", "no_signal", "maintenance"] },
 ];
 
 const isFresh = (v: Vehicle) => !!v.latest_location && Date.now() - new Date(v.latest_location.recorded_at).getTime() <= STALE_MINUTES * 60_000;
 
 function fleetStatus(v: Vehicle): FleetStatus {
   if (v.active_trip) return new Date(v.active_trip.estimated_arrival_at).getTime() < Date.now() ? "delayed" : "on_trip";
+  // Off the road for workshop work, per the vehicle record.
+  if (v.status === "maintenance") return "maintenance";
   if (!v.latest_location) return "no_signal";
   return isFresh(v) ? "idle" : "offline";
 }
@@ -91,6 +95,7 @@ export function MonitoringView() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [focused, setFocused] = useState(false);
   const [showRoute, setShowRoute] = useState(false);
+  const [popup, setPopup] = useState(true);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
@@ -120,6 +125,7 @@ export function MonitoringView() {
   const select = (id: number) => {
     setSelectedId(id);
     setShowRoute(false);
+    setPopup(true);
   };
 
   const plotted = rows.filter((r) => r.vehicle.latest_location && (!focused || r.vehicle.id === sv?.id));
@@ -165,7 +171,7 @@ export function MonitoringView() {
             onClick={() => setLive((l) => !l)}
             aria-pressed={live}
             title={live ? "Auto-refreshing every 30 seconds. Click to pause." : "Paused. Click to resume auto-refresh."}
-            className={cn("flex h-10 items-center gap-2 rounded-lg border px-3.5 text-sm font-semibold shadow-sm", live ? "border-brand-200 bg-white text-ink-900" : "border-ink-200 bg-white text-ink-500")}
+            className={cn("flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-semibold shadow-sm", live ? "border-brand-200 bg-white text-ink-900" : "border-ink-200 bg-white text-ink-500")}
           >
             <span className="relative flex h-2.5 w-2.5">
               {live && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-500 opacity-60" />}
@@ -173,13 +179,13 @@ export function MonitoringView() {
             </span>
             {live ? "Live View" : "Paused"}
           </button>
-          <span className="flex h-10 items-center gap-2 rounded-lg border border-ink-200 bg-white px-3.5 text-sm text-ink-700 shadow-sm">
+          <span className="flex h-11 items-center gap-2 rounded-xl border border-ink-200 bg-white px-4 text-sm font-medium text-ink-800 shadow-sm">
             <CalendarDays className="h-4 w-4 text-ink-500" /> {format(now, "MMM d, yyyy h:mm a")}
           </span>
           <button
             type="button"
             onClick={() => (document.fullscreenElement ? document.exitFullscreen() : pageRef.current?.requestFullscreen?.())}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-ink-200 bg-white text-ink-700 shadow-sm hover:bg-ink-50"
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-ink-200 bg-white text-ink-700 shadow-sm hover:bg-ink-50"
             aria-label="Full screen"
           >
             <Maximize2 className="h-4 w-4" />
@@ -199,31 +205,31 @@ export function MonitoringView() {
 
       {/* Stat cards */}
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
-        <Stat icon={Truck} tone="bg-ink-900 text-white" label="Total Vehicles" value={gps.data ? rows.length : undefined}>
+        <Stat icon={Truck} tone="bg-sky-50 text-sky-600" label="Total Vehicles" value={gps.data ? rows.length : undefined}>
           {gps.data && (
-            <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+            <span className="flex flex-col gap-0.5">
               <Dot color="bg-emerald-500">{onRoad} On the Road</Dot>
               <Dot color="bg-ink-400">{count("idle")} Idle</Dot>
               <Dot color="bg-brand-600">{count("offline")} Offline</Dot>
             </span>
           )}
         </Stat>
-        <Stat icon={MapPin} tone="bg-emerald-500 text-white" label="Active Trips" value={m?.active_trips.total}>
+        <Stat icon={MapPin} tone="bg-emerald-50 text-emerald-600" label="Active Trips" value={m?.active_trips.total}>
           {m && (
-            <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+            <span className="flex flex-col gap-0.5">
               <Dot color="bg-emerald-500">{m.active_trips.on_time} On Time</Dot>
               <Dot color="bg-amber-500">{m.active_trips.delayed} Delayed</Dot>
               <Dot color="bg-brand-600">{m.active_trips.cancelled_today} Cancelled</Dot>
             </span>
           )}
         </Stat>
-        <Stat icon={Route} tone="bg-sky-500 text-white" label="Total Distance Today" value={today && `${formatNumber(today.distance_km)} km`} title="Planned distance of trips completed today">
+        <Stat icon={Route} tone="bg-sky-50 text-sky-600" label="Total Distance Today" value={today && `${formatNumber(today.distance_km)} km`} title="Planned distance of trips completed today">
           {today && week && <Delta now={today.distance_km} before={week.distance_km} />}
         </Stat>
-        <Stat icon={Fuel} tone="bg-amber-500 text-white" label="Total Fuel Today" value={today && `${formatNumber(today.fuel_liters)} L`} title="Liters entered in today's fuel records">
+        <Stat icon={Fuel} tone="bg-sky-50 text-sky-600" label="Total Fuel Today" value={today && `${formatNumber(today.fuel_liters)} L`} title="Liters entered in today's fuel records">
           {today && week && <Delta now={today.fuel_liters} before={week.fuel_liters} upIsBad />}
         </Stat>
-        <Stat icon={Gauge} tone="bg-violet-500 text-white" label="Average Speed" value={today && (today.average_speed_kph != null ? `${formatNumber(today.average_speed_kph)} km/h` : "—")} title="Average of today's moving GPS samples">
+        <Stat icon={Gauge} tone="bg-orange-50 text-orange-500" label="Average Speed" value={today && (today.average_speed_kph != null ? `${formatNumber(today.average_speed_kph)} km/h` : "—")} title="Average of today's moving GPS samples">
           {today && week && (today.average_speed_kph != null ? <Delta now={today.average_speed_kph} before={week.average_speed_kph} /> : <span className="text-xs text-ink-500">No GPS speed data today</span>)}
         </Stat>
       </div>
@@ -264,7 +270,7 @@ export function MonitoringView() {
               </div>
 
               {/* Locate / show all */}
-              <div className="absolute top-3 right-3 flex flex-col overflow-hidden rounded-lg bg-white shadow-md">
+              <div className="absolute top-3 right-3 flex flex-col overflow-hidden rounded-lg bg-white shadow-md sm:top-auto sm:bottom-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -293,8 +299,8 @@ export function MonitoringView() {
               </div>
 
               {/* Selected vehicle */}
-              {sv && (
-                <div className="absolute right-3 bottom-3 left-3 rounded-xl bg-white p-3 shadow-lg sm:left-auto sm:w-80">
+              {sv && popup && (
+                <div className="absolute right-3 bottom-3 left-3 rounded-xl bg-white p-3 shadow-lg sm:top-16 sm:right-auto sm:bottom-auto sm:w-80">
                   <div className="flex gap-3">
                     {sv.cover_photo ? (
                       // eslint-disable-next-line @next/next/no-img-element -- authenticated API image
@@ -305,9 +311,14 @@ export function MonitoringView() {
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
                         <p className="font-semibold text-ink-900">{sv.plate_number}</p>
-                        <Badge tone={STATUS[selected.status].tone}>{STATUS[selected.status].label}</Badge>
+                        <Badge tone={STATUS[selected.status].tone} dot>
+                          {STATUS[selected.status].label}
+                        </Badge>
+                        <button type="button" onClick={() => setPopup(false)} className="-mt-1 -mr-1 ml-auto rounded p-1 text-ink-500 hover:bg-ink-100" aria-label="Close vehicle card">
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
                       <p className="truncate text-xs text-ink-500">
                         {sv.make} {sv.model} ({labelOf(VEHICLE_TYPES, sv.vehicle_type)})
@@ -316,7 +327,19 @@ export function MonitoringView() {
                   </div>
                   <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
                     <dt className="text-ink-500">Driver</dt>
-                    <dd className="truncate font-medium text-ink-800">{sv.active_trip?.driver?.full_name ?? sv.assigned_driver?.full_name ?? "—"}</dd>
+                    <dd className="truncate font-medium text-ink-800">
+                      <DriverLink vehicle={sv} />
+                    </dd>
+                    <dt className="text-ink-500">Trip</dt>
+                    <dd className="truncate font-medium text-ink-800">
+                      {sv.active_trip ? (
+                        <Link href={`/transportation/itinerary/${sv.active_trip.id}`} className="hover:text-brand-600">
+                          {sv.active_trip.trip_number}
+                        </Link>
+                      ) : (
+                        "—"
+                      )}
+                    </dd>
                     <dt className="text-ink-500">Speed</dt>
                     <dd className="font-medium text-ink-800">{isFresh(sv) && sv.latest_location?.speed_kph != null ? `${formatNumber(sv.latest_location.speed_kph)} km/h` : "—"}</dd>
                     <dt className="text-ink-500">Last Update</dt>
@@ -326,16 +349,16 @@ export function MonitoringView() {
                   </dl>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <Link href={`/fleet/vehicles/${sv.id}`} className="flex items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-800 hover:bg-ink-50">
-                      <Eye className="h-3.5 w-3.5" /> View Details
+                      <Eye className="h-3.5 w-3.5 text-sky-600" /> View Details
                     </Link>
                     <button
                       type="button"
                       onClick={() => setShowRoute((s) => !s)}
                       disabled={!sv.latest_location || !meta?.map_provider_configured}
-                      className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-40"
+                      className="flex items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-semibold text-ink-800 hover:bg-ink-50 disabled:opacity-40"
                       title={sv.latest_location ? undefined : "No reported positions to draw"}
                     >
-                      {showRoute ? <X className="h-3.5 w-3.5" /> : <Navigation className="h-3.5 w-3.5" />} {showRoute ? "Close Route" : "Track Route"}
+                      {showRoute ? <X className="h-3.5 w-3.5" /> : <Navigation className="h-3.5 w-3.5 text-sky-600" />} {showRoute ? "Close Route" : "Track Route"}
                     </button>
                   </div>
                 </div>
@@ -350,15 +373,15 @@ export function MonitoringView() {
           </Card>
 
           <Card>
-            <CardHeader title="Trip Summary (Today)" icon={<Route />} description="Compared with the same day last week" />
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 2xl:grid-cols-4">
+            <CardHeader title="Trip Summary (Today)" icon={<Route />} />
+            <div className="grid grid-cols-1 divide-ink-100 sm:grid-cols-2 sm:divide-x 2xl:grid-cols-4 [&>*]:border-ink-100 max-sm:[&>*+*]:border-t">
               <SummaryTile icon={CheckCircle2} tone="text-emerald-600 bg-emerald-50" label="Completed Trips" value={today?.completed}>
                 {today && week && <Delta now={today.completed} before={week.completed} />}
               </SummaryTile>
               <SummaryTile icon={Clock} tone="text-amber-600 bg-amber-50" label="Delayed Trips" value={today?.delayed}>
                 {today && week && <Delta now={today.delayed} before={week.delayed} upIsBad />}
               </SummaryTile>
-              <SummaryTile icon={XCircle} tone="text-brand-600 bg-brand-50" label="Cancelled Trips" value={today?.cancelled}>
+              <SummaryTile icon={XCircle} tone="text-white bg-brand-600" label="Cancelled Trips" value={today?.cancelled}>
                 {today && week && <Delta now={today.cancelled} before={week.cancelled} upIsBad />}
               </SummaryTile>
               <SummaryTile icon={Route} tone="text-sky-600 bg-sky-50" label="Total Distance" value={today && `${formatNumber(today.distance_km)} km`}>
@@ -372,13 +395,13 @@ export function MonitoringView() {
         <div className="min-w-0 space-y-5">
           <Card className="min-w-0">
             <CardHeader title="Fleet Status" icon={<Truck />} />
-            <div className="flex flex-wrap gap-1 border-b border-ink-100 px-4 pt-3">
+            <div className="grid grid-cols-2 gap-1 px-3 pt-3 sm:grid-cols-4">
               {TABS.map((t) => (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => setTab(t.key)}
-                  className={cn("-mb-px border-b-2 px-3 pb-2.5 text-sm font-medium", tab === t.key ? "border-brand-600 text-brand-700" : "border-transparent text-ink-500 hover:text-ink-800")}
+                  className={cn("rounded-lg border px-3 py-2 text-sm font-medium", tab === t.key ? "border-brand-600 bg-brand-600 text-white" : "border-ink-200 text-ink-700 hover:bg-ink-50")}
                 >
                   {t.label} ({count(t.key)})
                 </button>
@@ -439,9 +462,13 @@ export function MonitoringView() {
                             </span>
                           </span>
                         </td>
-                        <td className="px-3 py-2.5 whitespace-nowrap text-ink-700">{v.active_trip?.driver?.full_name ?? v.assigned_driver?.full_name ?? <span className="text-ink-400">—</span>}</td>
+                        <td className="px-3 py-2.5 whitespace-nowrap text-ink-700" onClick={(e) => e.stopPropagation()}>
+                          <DriverLink vehicle={v} />
+                        </td>
                         <td className="px-3 py-2.5">
-                          <Badge tone={STATUS[s].tone}>{STATUS[s].label}</Badge>
+                          <Badge tone={STATUS[s].tone} dot className="whitespace-nowrap">
+                            {STATUS[s].label}
+                          </Badge>
                         </td>
                         <td className="max-w-32 min-w-24 px-3 py-2.5 text-xs text-ink-700">
                           <span className="line-clamp-2">{location(v, place)}</span>
@@ -459,7 +486,7 @@ export function MonitoringView() {
                             aria-label={`Show ${v.plate_number} on the map`}
                             title={v.latest_location ? "Show on map" : "No position reported"}
                           >
-                            <MapPin className="h-4 w-4" />
+                            <MapPin className="h-4 w-4 text-sky-600" />
                           </button>
                           <Dropdown
                             trigger={({ toggle }) => (
@@ -469,6 +496,7 @@ export function MonitoringView() {
                             )}
                             items={[
                               { label: "Vehicle profile", icon: <Truck />, onSelect: () => router.push(`/fleet/vehicles/${v.id}`) },
+                              ...(driverOf(v) ? [{ label: "Driver profile", icon: <User />, onSelect: () => router.push(`/fleet/drivers/${driverOf(v)!.id}`) }] : []),
                               { label: "Tracking history", icon: <Navigation />, onSelect: () => router.push(`${GPS_PATH}/${v.id}`) },
                               ...(v.active_trip ? [{ label: "Trip itinerary", icon: <Route />, onSelect: () => router.push(`/transportation/itinerary/${v.active_trip!.id}`) }] : []),
                             ]}
@@ -487,7 +515,6 @@ export function MonitoringView() {
             <CardHeader
               title={`Trip Events${sv ? ` (${sv.plate_number})` : ""}`}
               icon={<Clock />}
-              description="Today, from trip records and GPS reports"
               action={
                 sv && (
                   <Link href={`${GPS_PATH}/${sv.id}`} className="text-sm font-medium text-brand-600 hover:text-brand-700">
@@ -518,18 +545,30 @@ function location(v: Vehicle, place?: string) {
   return place ?? `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`;
 }
 
-const EVENT: Record<TripEvent["type"], { title: string; icon: LucideIcon; color: string }> = {
-  dispatched: { title: "Dispatched", icon: Send, color: "bg-orange-500" },
-  departed: { title: "Trip Started", icon: Play, color: "bg-sky-600" },
-  arrived: { title: "Arrived", icon: MapPin, color: "bg-emerald-600" },
-  skipped: { title: "Stop Skipped", icon: SkipForward, color: "bg-ink-400" },
-  completed: { title: "Trip Completed", icon: Flag, color: "bg-emerald-700" },
+const driverOf = (v: Vehicle) => v.active_trip?.driver ?? v.assigned_driver ?? null;
+
+function DriverLink({ vehicle }: { vehicle: Vehicle }) {
+  const d = driverOf(vehicle);
+  if (!d) return <span className="text-ink-400">—</span>;
+  return (
+    <Link href={`/fleet/drivers/${d.id}`} className="hover:text-brand-600">
+      {d.full_name}
+    </Link>
+  );
+}
+
+const EVENT: Record<TripEvent["type"], { title: string; icon: LucideIcon; tone: string; dot: string }> = {
+  dispatched: { title: "Dispatched", icon: Send, tone: "bg-orange-50 text-orange-600", dot: "bg-orange-500" },
+  departed: { title: "Trip Started", icon: Play, tone: "bg-sky-50 text-sky-600", dot: "bg-sky-600" },
+  arrived: { title: "Check-in", icon: Flag, tone: "bg-sky-50 text-sky-600", dot: "bg-sky-600" },
+  skipped: { title: "Stop Skipped", icon: SkipForward, tone: "bg-ink-100 text-ink-500", dot: "bg-ink-400" },
+  completed: { title: "Trip Completed", icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-600", dot: "bg-emerald-500" },
 };
 
 /** Today's events for one vehicle, with its latest GPS report (if it reported today) on top. */
 function Timeline({ vehicle, place, events }: { vehicle: Vehicle; place?: string; events: TripEvent[] }) {
   const loc = vehicle.latest_location;
-  const items: { key: string; at: string; title: string; icon: LucideIcon; color: string; location: string; detail: ReactNode }[] = [];
+  const items: { key: string; at: string; title: string; icon: LucideIcon; tone: string; dot: string; location: string; detail: ReactNode }[] = [];
   if (loc && new Date(loc.recorded_at).toDateString() === new Date().toDateString()) {
     const moving = (loc.speed_kph ?? 0) > MOVING_KPH;
     items.push({
@@ -537,7 +576,8 @@ function Timeline({ vehicle, place, events }: { vehicle: Vehicle; place?: string
       at: loc.recorded_at,
       title: isFresh(vehicle) ? (moving ? "Moving" : "Stopped") : "Last GPS report",
       icon: moving ? Navigation : Circle,
-      color: moving ? "bg-emerald-500" : "bg-ink-400",
+      tone: moving ? "bg-emerald-50 text-emerald-600" : "bg-ink-100 text-ink-500",
+      dot: moving ? "bg-emerald-500" : "bg-ink-400",
       location: place ?? `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`,
       detail: loc.speed_kph != null ? `${formatNumber(loc.speed_kph)} km/h` : formatRelative(loc.recorded_at),
     });
@@ -561,17 +601,18 @@ function Timeline({ vehicle, place, events }: { vehicle: Vehicle; place?: string
   return (
     <ol className="max-h-80 overflow-auto px-5 py-4">
       {items.map((it, i) => (
-        <li key={it.key} className="relative flex gap-3 pb-4 last:pb-0">
-          {i < items.length - 1 && <span className="absolute top-7 bottom-0 left-[5.4rem] w-px bg-ink-200" aria-hidden />}
-          <span className="w-16 shrink-0 pt-1 text-xs whitespace-nowrap text-ink-500">{formatTime(it.at)}</span>
-          <span className={cn("relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-white [&>svg]:h-3.5 [&>svg]:w-3.5", it.color)}>
+        <li key={it.key} className="relative flex items-start gap-3 pb-5 last:pb-0">
+          {i < items.length - 1 && <span className="absolute top-4 bottom-0 left-[5px] w-px bg-sky-200" aria-hidden />}
+          <span className={cn("relative z-10 mt-2.5 h-3 w-3 shrink-0 rounded-full ring-2 ring-white", it.dot)} />
+          <span className="w-16 shrink-0 pt-2 text-xs whitespace-nowrap text-ink-600">{formatTime(it.at)}</span>
+          <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-full [&>svg]:h-4 [&>svg]:w-4", it.tone)}>
             <it.icon />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-ink-900">{it.title}</span>
             <span className="block truncate text-xs text-ink-500">{it.location}</span>
           </span>
-          <span className="shrink-0 pt-0.5 text-xs font-medium text-ink-700">{it.detail}</span>
+          <span className="shrink-0 pt-1 text-xs font-medium text-ink-600">{it.detail}</span>
         </li>
       ))}
     </ol>
@@ -580,14 +621,14 @@ function Timeline({ vehicle, place, events }: { vehicle: Vehicle; place?: string
 
 function Stat({ icon: Icon, tone, label, value, title, children }: { icon: LucideIcon; tone: string; label: string; value: ReactNode | undefined; title?: string; children?: ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-ink-100 bg-white p-4 shadow-card" title={title}>
-      <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl shadow-sm", tone)}>
-        <Icon className="h-5 w-5" />
+    <div className="flex items-start gap-4 rounded-xl border border-ink-100 bg-white p-4 shadow-card" title={title}>
+      <span className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-xl", tone)}>
+        <Icon className="h-7 w-7" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink-600">{label}</p>
+        <p className="truncate text-sm text-ink-600">{label}</p>
         {value === undefined ? <span className="mt-1 block h-7 w-14 animate-pulse rounded bg-ink-100" /> : <p className="text-2xl leading-tight font-bold text-ink-900">{value}</p>}
-        <div className="mt-1 text-xs text-ink-600">{children}</div>
+        <div className="mt-1 text-sm text-ink-600">{children}</div>
       </div>
     </div>
   );
@@ -595,14 +636,14 @@ function Stat({ icon: Icon, tone, label, value, title, children }: { icon: Lucid
 
 function SummaryTile({ icon: Icon, tone, label, value, children }: { icon: LucideIcon; tone: string; label: string; value: ReactNode | undefined; children?: ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-ink-100 p-3">
-      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", tone)}>
-        <Icon className="h-5 w-5" />
+    <div className="flex items-start gap-3 p-4">
+      <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", tone)}>
+        <Icon className="h-6 w-6" />
       </span>
       <div className="min-w-0">
-        <p className="text-xs font-medium text-ink-600">{label}</p>
+        <p className="text-sm text-ink-600">{label}</p>
         {value === undefined ? <span className="mt-1 block h-6 w-10 animate-pulse rounded bg-ink-100" /> : <p className="text-xl leading-tight font-bold text-ink-900">{value}</p>}
-        {children}
+        <div className="mt-1">{children}</div>
       </div>
     </div>
   );
@@ -610,28 +651,28 @@ function SummaryTile({ icon: Icon, tone, label, value, children }: { icon: Lucid
 
 function Dot({ color, children }: { color: string; children: ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
       <span className={cn("h-2 w-2 rounded-full", color)} /> {children}
     </span>
   );
 }
 
-/** "↑ 12% vs last week" (same weekday). When a rise is bad news (delays, fuel) it shows in red. */
+/** "↑ 12%" over "vs. last week" (same weekday). When a rise is bad news (delays, fuel) it shows in red. */
 function Delta({ now, before, upIsBad }: { now: number; before: number | null; upIsBad?: boolean }) {
   if (before == null) return <span className="text-xs text-ink-500">No data last week</span>;
   const up = now > before;
   const good = up !== !!upIsBad;
   return (
-    <span className="flex flex-wrap items-center gap-x-1 text-xs whitespace-nowrap text-ink-500">
+    <span className="block text-sm">
       {now === before ? (
-        <span className="font-semibold text-ink-500">0%</span>
+        <span className="block font-semibold text-ink-500">0%</span>
       ) : (
-        <span className={cn("flex items-center gap-0.5 font-semibold", good ? "text-emerald-600" : "text-brand-600")}>
-          {up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+        <span className={cn("flex items-center gap-1 font-semibold", good ? "text-emerald-600" : "text-brand-600")}>
+          {up ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
           {before ? `${Math.round((Math.abs(now - before) / before) * 100)}%` : "new"}
         </span>
       )}
-      vs last week
+      <span className="block text-xs text-ink-500">vs. last week</span>
     </span>
   );
 }
