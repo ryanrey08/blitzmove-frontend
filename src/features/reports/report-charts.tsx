@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, LabelList, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils";
 import { TRIP_STATUS_COLORS, type TripStatusSlice } from "./api";
 
@@ -59,8 +59,8 @@ export function TripStatusDonut({ data, compact = false }: { data: TripStatusSli
   const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
 
   return (
-    <div className={compact ? "flex items-center gap-3" : "flex w-full flex-col items-center gap-5 sm:flex-row xl:gap-4"}>
-      <div className={compact ? "relative h-28 w-28 shrink-0" : "relative h-44 w-44 shrink-0 xl:h-36 xl:w-36 2xl:h-44 2xl:w-44"}>
+    <div className={compact ? "flex flex-col items-center gap-2 @[30rem]:flex-row" : "flex w-full flex-col items-center gap-5 sm:flex-row xl:gap-4"}>
+      <div className={compact ? "relative h-24 w-24 shrink-0" : "relative h-44 w-44 shrink-0 xl:h-36 xl:w-36 2xl:h-44 2xl:w-44"}>
         {total > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -77,10 +77,10 @@ export function TripStatusDonut({ data, compact = false }: { data: TripStatusSli
         )}
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className={compact ? "text-xl font-bold text-ink-900" : "text-3xl font-bold text-ink-900"}>{formatNumber(total)}</span>
-          <span className="text-[0.7rem] text-ink-500">Total Trips</span>
+          <span className={compact ? "text-[0.55rem] text-ink-500" : "text-[0.7rem] text-ink-500"}>Total Trips</span>
         </div>
       </div>
-      <ul className={compact ? "min-w-0 flex-1 space-y-1 text-[0.7rem]" : "w-full min-w-0 flex-1 space-y-2.5 text-sm"}>
+      <ul className={compact ? "w-full min-w-0 flex-1 space-y-1 text-[0.7rem]" : "w-full min-w-0 flex-1 space-y-2.5 text-sm"}>
         {data.map((d) => (
           <li key={d.key} className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: TRIP_STATUS_COLORS[d.key] }} aria-hidden />
@@ -103,7 +103,9 @@ export function DistancePerVehicleChart({ data }: { data: { plate: string; km: n
         <XAxis type="number" tick={{ ...AXIS, fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => formatNumber(v)} />
         <YAxis type="category" dataKey="plate" interval={0} tick={{ ...AXIS, fontSize: 10 }} axisLine={false} tickLine={false} width={64} />
         <Tooltip cursor={{ fill: "rgba(16,24,40,0.04)" }} contentStyle={TOOLTIP} formatter={(v) => [`${formatNumber(Number(v), 1)} km`, "Distance"]} />
-        <Bar dataKey="km" fill="#3b82f6" radius={[0, 3, 3, 0]} maxBarSize={12} isAnimationActive={false} />
+        <Bar dataKey="km" fill="#3b82f6" radius={[0, 3, 3, 0]} maxBarSize={12} isAnimationActive={false}>
+          <LabelList dataKey="km" position="insideRight" fill="#fff" fontSize={9} formatter={(v) => formatNumber(Number(v))} />
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

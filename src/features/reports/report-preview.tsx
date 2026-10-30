@@ -70,14 +70,14 @@ export function ReportPreview({ reportId, onClose }: { reportId: number; onClose
         {query.isLoading ? <LoadingState label="Building report…" /> : query.error ? <ErrorState message={query.error.message} onRetry={() => query.refetch()} /> : report && <ReportDocument report={report} />}
       </div>
       {report && (
-        <div className="flex flex-wrap gap-2 border-t border-ink-100 px-4 py-3">
-          <Button variant="secondary" size="sm" onClick={printReport} title="Opens the print dialog; choose “Save as PDF”">
+        <div className="grid grid-cols-1 gap-2 border-t border-ink-100 px-4 py-3 sm:grid-cols-3">
+          <Button variant="secondary" size="sm" className="h-9 px-2" onClick={printReport} title="Opens the print dialog; choose “Save as PDF”">
             <Download className="h-4 w-4" /> Download (PDF)
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => exportReportCsv(report)} title="CSV file that opens in Excel">
+          <Button variant="secondary" size="sm" className="h-9 px-2" onClick={() => exportReportCsv(report)} title="CSV file that opens in Excel">
             <FileSpreadsheet className="h-4 w-4" /> Download (Excel)
           </Button>
-          <Button variant="secondary" size="sm" onClick={printReport}>
+          <Button variant="secondary" size="sm" className="h-9 px-2" onClick={printReport}>
             <Printer className="h-4 w-4" /> Print
           </Button>
         </div>
@@ -118,7 +118,7 @@ function ReportDocument({ report }: { report: ReportDetail }) {
 
       <div className="mt-3 grid grid-cols-2 gap-2 @md:grid-cols-4">
         {tiles.map((t) => (
-          <div key={t.label} className="rounded-md bg-ink-50 px-2.5 py-2">
+          <div key={t.label} className="rounded-md border border-ink-100 bg-ink-50 px-2.5 py-2">
             <p className="truncate text-[0.68rem] text-ink-500">{t.label}</p>
             <p className="text-sm font-bold">{t.value}</p>
           </div>
@@ -164,8 +164,8 @@ function ReportDocument({ report }: { report: ReportDetail }) {
         Distance from fuel-record odometer readings. Utilization = days with a trip on the road ÷ {p.period.days} days.
       </p>
 
-      <div className="mt-4 grid gap-4 @xl:grid-cols-2">
-        <div className="min-w-0">
+      <div className="mt-4 grid gap-3 @xs:grid-cols-2">
+        <div className="min-w-0 rounded-md border border-ink-100 p-2.5">
           <p className="mb-1.5 text-xs font-semibold">Distance per Vehicle</p>
           {withDistance.length ? (
             <div style={{ height: Math.max(96, withDistance.length * 22) }}>
@@ -175,7 +175,7 @@ function ReportDocument({ report }: { report: ReportDetail }) {
             <p className="rounded-md bg-ink-50 px-3 py-6 text-center text-[0.7rem] text-ink-500">No odometer readings in this period.</p>
           )}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 rounded-md border border-ink-100 p-2.5">
           <p className="mb-1.5 text-xs font-semibold">Trip Status Distribution</p>
           <TripStatusDonut data={p.trip_status} compact />
         </div>

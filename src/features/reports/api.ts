@@ -4,16 +4,16 @@ import type { ListParams, Paginated, Resource } from "@/types/api";
 
 export type ReportType = "fleet" | "trips" | "fuel" | "driver" | "maintenance" | "geofence" | "delivery" | "custom";
 
-/** Labels match ReportType::label() in the API. */
+/** Labels match ReportType::label() in the API; `tone` is the solid icon tile in the Report List. */
 export const REPORT_TYPES: Record<ReportType, { label: string; icon: LucideIcon; tone: string; title: string }> = {
-  fleet: { label: "Fleet Utilization", icon: Truck, tone: "bg-sky-50 text-sky-600", title: "Fleet Utilization Report" },
-  trips: { label: "Trips", icon: Route, tone: "bg-emerald-50 text-emerald-600", title: "Trip Report" },
-  fuel: { label: "Fuel", icon: Fuel, tone: "bg-brand-50 text-brand-600", title: "Fuel Report" },
-  driver: { label: "Driver", icon: UserRound, tone: "bg-violet-50 text-violet-600", title: "Driver Report" },
-  maintenance: { label: "Maintenance", icon: Wrench, tone: "bg-orange-50 text-orange-500", title: "Maintenance Report" },
-  geofence: { label: "Geofence", icon: MapPinned, tone: "bg-indigo-50 text-indigo-600", title: "Geofence Report" },
-  delivery: { label: "Orders / Delivery", icon: Package, tone: "bg-amber-50 text-amber-600", title: "Delivery Report" },
-  custom: { label: "Custom", icon: ClipboardList, tone: "bg-ink-100 text-ink-600", title: "Custom Report" },
+  fleet: { label: "Fleet", icon: Truck, tone: "bg-blue-600 text-white", title: "Fleet Utilization Report" },
+  trips: { label: "Trips", icon: Route, tone: "bg-sky-600 text-white", title: "Trip Report" },
+  fuel: { label: "Fuel", icon: Fuel, tone: "bg-brand-600 text-white", title: "Fuel Report" },
+  driver: { label: "Driver", icon: UserRound, tone: "bg-teal-600 text-white", title: "Driver Report" },
+  maintenance: { label: "Maintenance", icon: Wrench, tone: "bg-blue-500 text-white", title: "Maintenance Report" },
+  geofence: { label: "Geofence", icon: MapPinned, tone: "bg-violet-600 text-white", title: "Geofence Report" },
+  delivery: { label: "Orders", icon: Package, tone: "bg-orange-500 text-white", title: "Delivery Report" },
+  custom: { label: "Custom", icon: ClipboardList, tone: "bg-indigo-600 text-white", title: "Custom Report" },
 };
 
 export const REPORT_TYPE_OPTIONS = (Object.keys(REPORT_TYPES) as ReportType[]).map((value) => ({ value, label: REPORT_TYPES[value].label }));
@@ -34,7 +34,7 @@ export interface Compared {
 }
 
 export interface TripStatusSlice {
-  key: "completed" | "in_transit" | "scheduled" | "cancelled";
+  key: "delivered" | "in_transit" | "pending" | "delayed" | "cancelled";
   label: string;
   count: number;
 }
@@ -91,10 +91,11 @@ export const reportsService = {
   remove: (id: number) => api.delete<{ message: string }>(`reports/${id}`),
 };
 
-/** Donut colors per bucket: green / blue / amber / red. */
+/** Donut colors per bucket (Delivered = completed, In Transit / Delayed = on the road before / after the ETA, Pending = scheduled). */
 export const TRIP_STATUS_COLORS: Record<TripStatusSlice["key"], string> = {
-  completed: "#16a34a",
+  delivered: "#16a34a",
   in_transit: "#3b82f6",
-  scheduled: "#f59e0b",
-  cancelled: "#ef4444",
+  pending: "#f59e0b",
+  delayed: "#ef4444",
+  cancelled: "#98a2b3",
 };
