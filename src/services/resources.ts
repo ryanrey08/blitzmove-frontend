@@ -119,6 +119,14 @@ export const stopsService = {
 export const fuelService = {
   ...crud<FuelRecord>("fuel-records"),
   summary: (params: ListParams = {}) => api.get<{ data: FuelSummary }>("fuel-records/summary", params),
+  /** Stations used before, most frequent first. */
+  stations: () => api.get<{ data: string[] }>("fuel-records/stations"),
+  uploadReceipt: (id: number, file: File) => {
+    const form = new FormData();
+    form.set("receipt", file);
+    return api.post<{ data: { receipt: string }; message: string }>(`fuel-records/${id}/receipt`, form);
+  },
+  removeReceipt: (id: number) => api.delete<{ message: string }>(`fuel-records/${id}/receipt`),
 };
 
 export const documentsService = {

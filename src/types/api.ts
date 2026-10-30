@@ -22,6 +22,7 @@ export type VehicleType =
   | "motorcycle";
 export type LicenseType = "professional" | "non_professional";
 export type FuelType = "diesel" | "gasoline" | "electric" | "lpg";
+export type PaymentMethod = "cash" | "fuel_card" | "credit_card" | "debit_card" | "company_account" | "e_wallet";
 export type VehicleDocumentType = "registration" | "insurance" | "permit" | "inspection" | "emission_test" | "other";
 export type DriverDocumentType =
   | "license"
@@ -257,9 +258,14 @@ export interface FuelRecord {
   liters: number;
   price_per_liter: number;
   total_cost: number;
+  payment_method: PaymentMethod | null;
   odometer_km: number | null;
   station: string | null;
   receipt_number: string | null;
+  /** Free-form PO / trip / reference number. */
+  reference_number: string | null;
+  /** API path of the receipt photo; open it with api.url(). */
+  receipt: string | null;
   notes: string | null;
   created_at: string;
 }

@@ -3,6 +3,7 @@ import type {
   DriverStatus,
   ExpiryStatus,
   FuelType,
+  PaymentMethod,
   LicenseType,
   OrderStatus,
   StopStatus,
@@ -133,6 +134,15 @@ export const VEHICLE_FEATURES: Option<VehicleFeature>[] = [
 export const LICENSE_TYPES = options<LicenseType>({ professional: "Professional", non_professional: "Non Professional" });
 
 export const FUEL_TYPES = options<FuelType>({ diesel: "Diesel", gasoline: "Gasoline", electric: "Electric", lpg: "LPG" });
+
+export const PAYMENT_METHODS = options<PaymentMethod>({
+  cash: "Cash",
+  fuel_card: "Fuel Card",
+  credit_card: "Credit Card",
+  debit_card: "Debit Card",
+  company_account: "Company Account",
+  e_wallet: "E-Wallet",
+});
 
 export const VEHICLE_DOCUMENT_TYPES = options<VehicleDocumentType>({
   registration: "Registration",

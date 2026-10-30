@@ -3,7 +3,7 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Banknote, Droplets, Fuel, Gauge, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,15 +21,15 @@ import { FUEL_TYPES, labelOf } from "@/lib/constants";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/utils";
 import { fuelService } from "@/services/resources";
 import type { FuelRecord } from "@/types/api";
-import { FuelFormModal } from "./fuel-form";
+import { FUEL_PATH } from "./fuel-editor";
 import { useFleetOptions } from "./use-fleet-options";
 
 export function FuelView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { canOperate } = usePermissions();
   const { vehicleOptions } = useFleetOptions();
   const { params, update, setPage } = useListParams({ sort: "-fueled_at", vehicle_id: searchParams.get("vehicle") ?? "", fuel_type: "", from: "", to: "" });
-  const [editing, setEditing] = useState<FuelRecord | null | undefined>(undefined);
   const [deleting, setDeleting] = useState<FuelRecord | null>(null);
 
   const filters = { ...params, page: undefined, per_page: undefined, sort: undefined };
@@ -46,8 +46,8 @@ export function FuelView() {
         description="Fuel purchases, consumption and expense per vehicle."
         actions={
           canOperate && (
-            <Button onClick={() => setEditing(null)}>
-              <Plus className="h-4 w-4" /> Add Fuel Record
+            <Button onClick={() => router.push(params.vehicle_id ? `${FUEL_PATH}/create?vehicle=${params.vehicle_id}` : `${FUEL_PATH}/create`)}>
+              <Plus className="h-4 w-4" /> Add Fuel Transaction
             </Button>
           )
         }
@@ -62,7 +62,7 @@ export function FuelView() {
 
       <Card>
         <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-[1fr_15rem_10rem_10rem_10rem]">
-          <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search station, receipt, plate, driver…" />
+          <SearchInput value={(params.search as string) ?? ""} onChange={(search) => update({ search })} placeholder="Search station, receipt, reference, plate, driver…" />
           <Select value={params.vehicle_id as string} onChange={(e) => update({ vehicle_id: e.target.value })} options={vehicleOptions} placeholder="All vehicles" aria-label="Filter by vehicle" />
           <Select value={params.fuel_type as string} onChange={(e) => update({ fuel_type: e.target.value })} options={FUEL_TYPES} placeholder="All fuel types" aria-label="Filter by fuel type" />
           <Input type="date" value={params.from as string} onChange={(e) => update({ from: e.target.value })} aria-label="From date" />
@@ -104,7 +104,7 @@ export function FuelView() {
               cell: (r) =>
                 canOperate && (
                   <span className="flex gap-1">
-                    <button onClick={() => setEditing(r)} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label="Edit fuel record">
+                    <button onClick={() => router.push(`${FUEL_PATH}/${r.id}/edit`)} className="rounded-md p-1.5 text-ink-500 hover:bg-ink-100" aria-label="Edit fuel record">
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button onClick={() => setDeleting(r)} className="rounded-md p-1.5 text-ink-500 hover:bg-brand-50 hover:text-brand-700" aria-label="Delete fuel record">
@@ -118,7 +118,6 @@ export function FuelView() {
         <Pagination meta={list.data?.meta} onPageChange={setPage} perPage={params.per_page} onPerPageChange={(per_page) => update({ per_page })} noun="records" />
       </Card>
 
-      <FuelFormModal open={editing !== undefined} record={editing} defaultVehicleId={(params.vehicle_id as string) || undefined} onClose={() => setEditing(undefined)} />
       <ConfirmDialog
         open={!!deleting}
         title="Delete fuel record"
