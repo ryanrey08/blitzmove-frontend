@@ -24,6 +24,8 @@ export interface NavGroup {
   icon: LucideIcon;
   href?: string;
   items?: NavLink[];
+  /** Left out of the sidebar along with its items; the routes still work. */
+  hidden?: boolean;
 }
 
 export const NAVIGATION: NavGroup[] = [
@@ -65,6 +67,7 @@ export const NAVIGATION: NavGroup[] = [
   {
     label: "Maintenance",
     icon: Wrench,
+    hidden: true,
     items: [
       { label: "Dashboard", href: "/maintenance/dashboard", placeholder: true },
       { label: "Work Orders", href: "/maintenance/work-orders", placeholder: true },

@@ -63,7 +63,7 @@ export function Sidebar({ user, onNavigate, onLogout, loggingOut }: SidebarProps
       </div>
 
       <nav className="scrollbar-thin flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Main">
-        {NAVIGATION.map((group) => {
+        {NAVIGATION.filter((group) => !group.hidden).map((group) => {
           const Icon = group.icon;
           const active = groupIsActive(pathname, group);
           const base =
