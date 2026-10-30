@@ -25,7 +25,8 @@ export function GenerateReportModal({ open, onClose, initial, vehicleOptions, dr
 
   useEffect(() => {
     if (!open) return;
-    const type = (initial.type as ReportType) || "fleet";
+    // Custom reports are configured on Reports → Custom Reports.
+    const type = initial.type && initial.type !== "custom" ? (initial.type as ReportType) : "fleet";
     setForm({ name: REPORT_TYPES[type].title, type, from: initial.from, to: initial.to, vehicle_id: initial.vehicle_id ?? "", driver_id: initial.driver_id ?? "" });
     setNameTouched(false);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -78,7 +79,7 @@ export function GenerateReportModal({ open, onClose, initial, vehicleOptions, dr
           <Select
             id="report-type"
             value={form.type}
-            options={REPORT_TYPE_OPTIONS}
+            options={REPORT_TYPE_OPTIONS.filter((o) => o.value !== "custom")}
             onChange={(e) => {
               const type = e.target.value as ReportType;
               setForm((f) => ({ ...f, type, name: nameTouched ? f.name : REPORT_TYPES[type].title }));

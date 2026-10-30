@@ -16,6 +16,7 @@ import {
   Trash2,
   Truck,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -33,7 +34,7 @@ import { useCurrentUser, usePermissions } from "@/hooks/use-current-user";
 import { exportCsv, fetchAllPages } from "@/lib/export";
 import { cn, formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { useFleetOptions } from "../fuel/use-fleet-options";
-import { REPORT_TYPE_OPTIONS, REPORT_TYPES, reportIcon, reportsService, type Report, type ReportFilters } from "./api";
+import { CUSTOM_REPORTS_PATH, REPORT_TYPE_OPTIONS, REPORT_TYPES, reportIcon, reportsService, type Report, type ReportFilters } from "./api";
 import { GenerateReportModal } from "./generate-report-modal";
 import { DistanceChart, FuelChart, TripStatusDonut } from "./report-charts";
 import { ReportPreview, exportReportCsv } from "./report-preview";
@@ -55,6 +56,7 @@ const periodLabel = (from: string, to: string) =>
 export function ReportsOverviewView() {
   const notify = useToast();
   const queryClient = useQueryClient();
+  const router = useRouter();
   const user = useCurrentUser();
   const { canOperate } = usePermissions();
   const { vehicleOptions, driverOptions } = useFleetOptions();
@@ -78,13 +80,14 @@ export function ReportsOverviewView() {
   const listParams = { page, per_page: perPage, search: search || undefined, type: applied.type || undefined };
   const list = useQuery({ queryKey: ["reports", "list", listParams], queryFn: () => reportsService.list(listParams), placeholderData: keepPreviousData });
 
-  // Open the newest report in the preview until the user closes it.
-  const firstId = list.data?.data[0]?.id;
+  // Open the newest report in the preview until the user closes it. Custom reports open in the builder instead.
+  const firstId = list.data?.data.find((r) => r.type !== "custom")?.id;
   useEffect(() => {
     if (previewId === null && !previewClosed && firstId) setPreviewId(firstId);
   }, [firstId, previewId, previewClosed]);
   const showPreview = previewId !== null && !previewClosed;
   const openPreview = (id: number) => {
+    if (list.data?.data.find((r) => r.id === id)?.type === "custom") return router.push(`${CUSTOM_REPORTS_PATH}?report=${id}`);
     setPreviewId(id);
     setPreviewClosed(false);
   };
@@ -126,6 +129,7 @@ export function ReportsOverviewView() {
   };
 
   const downloadReport = async (r: Report) => {
+    if (r.type === "custom") return router.push(`${CUSTOM_REPORTS_PATH}?report=${r.id}`);
     try {
       exportReportCsv(await queryClient.fetchQuery({ queryKey: ["reports", r.id], queryFn: () => reportsService.get(r.id).then((res) => res.data) }));
     } catch (e) {

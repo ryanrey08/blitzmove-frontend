@@ -17,6 +17,7 @@ export function Stat({
   upIsBad,
   points,
   title,
+  caption,
 }: {
   icon: LucideIcon;
   tone: string;
@@ -27,6 +28,8 @@ export function Stat({
   /** Compare in percentage points (for rates) instead of relative change. */
   points?: boolean;
   title?: string;
+  /** Shown instead of the comparison, for figures without a previous period. */
+  caption?: string;
 }) {
   return (
     <div className="flex items-center gap-4 rounded-xl border border-ink-100 bg-white p-5 shadow-card" title={title}>
@@ -40,7 +43,7 @@ export function Stat({
         ) : (
           <p className="text-2xl leading-tight font-bold tracking-tight text-ink-900 sm:text-[1.7rem]">{stat.value === null ? "—" : fmt(stat.value)}</p>
         )}
-        {stat && <Trend stat={stat} upIsBad={upIsBad} points={points} />}
+        {stat && (caption ? <p className="mt-0.5 text-xs text-ink-500">{caption}</p> : <Trend stat={stat} upIsBad={upIsBad} points={points} />)}
       </div>
     </div>
   );
