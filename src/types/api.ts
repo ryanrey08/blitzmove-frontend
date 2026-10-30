@@ -23,7 +23,7 @@ export type VehicleType =
 export type LicenseType = "professional" | "non_professional";
 export type FuelType = "diesel" | "gasoline" | "electric" | "lpg";
 export type PaymentMethod = "cash" | "fuel_card" | "credit_card" | "debit_card" | "company_account" | "e_wallet";
-export type VehicleDocumentType = "registration" | "insurance" | "permit" | "inspection" | "emission_test" | "other";
+export type VehicleDocumentType = "registration" | "official_receipt" | "insurance" | "permit" | "inspection" | "emission_test" | "other";
 export type DriverDocumentType =
   | "license"
   | "medical_certificate"
@@ -270,6 +270,16 @@ export interface FuelRecord {
   created_at: string;
 }
 
+export interface DocumentFile {
+  id: number;
+  original_name: string;
+  mime_type: string | null;
+  file_size: number | null;
+  /** API path (relative); add ?download=1 to save instead of view. */
+  path: string;
+  created_at: string;
+}
+
 export interface FleetDocument {
   id: number;
   owner_type: DocumentOwner;
@@ -283,10 +293,11 @@ export interface FleetDocument {
   issued_at: string | null;
   expires_at: string | null;
   expiry_status: ExpiryStatus;
-  has_file: boolean;
-  original_name: string | null;
-  mime_type: string | null;
-  file_size: number | null;
+  issuing_authority: string | null;
+  /** Loaded on list and detail responses (not on the monitoring summary). */
+  files?: DocumentFile[];
+  files_count?: number;
+  has_file?: boolean;
   notes: string | null;
   uploaded_by?: User | null;
   created_at: string;

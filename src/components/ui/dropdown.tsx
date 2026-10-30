@@ -49,6 +49,7 @@ export function Dropdown({ trigger, items, align = "right", className }: Dropdow
           {items.map((item) => (
             <button
               key={item.label}
+              type="button"
               role="menuitem"
               disabled={item.disabled}
               onClick={() => {

@@ -145,7 +145,8 @@ export const PAYMENT_METHODS = options<PaymentMethod>({
 });
 
 export const VEHICLE_DOCUMENT_TYPES = options<VehicleDocumentType>({
-  registration: "Registration",
+  registration: "Certificate of Registration (CR)",
+  official_receipt: "Official Receipt (OR)",
   insurance: "Insurance",
   permit: "Permit",
   inspection: "Inspection",
@@ -162,6 +163,33 @@ export const DRIVER_DOCUMENT_TYPES = options<DriverDocumentType>({
   contract: "Contract",
   other: "Other",
 });
+
+/**
+ * "Document Type" on the upload page: a grouping of document categories (the API's document_type).
+ * It is not stored; an existing document's group comes from its category.
+ */
+export interface DocumentGroup {
+  value: string;
+  label: string;
+  categories: string[];
+}
+
+export const DOCUMENT_GROUPS: Record<"vehicle" | "driver", DocumentGroup[]> = {
+  vehicle: [
+    { value: "vehicle_document", label: "Vehicle Document", categories: ["registration", "official_receipt"] },
+    { value: "insurance", label: "Insurance", categories: ["insurance"] },
+    { value: "permit", label: "Permit", categories: ["permit"] },
+    { value: "inspection", label: "Inspection & Emission", categories: ["inspection", "emission_test"] },
+    { value: "other", label: "Other", categories: ["other"] },
+  ],
+  driver: [
+    { value: "license", label: "License", categories: ["license"] },
+    { value: "certification", label: "Certification", categories: ["medical_certificate", "drug_test", "training_certificate"] },
+    { value: "clearance", label: "Clearance", categories: ["nbi_clearance"] },
+    { value: "employment", label: "Employment Document", categories: ["contract"] },
+    { value: "other", label: "Other", categories: ["other"] },
+  ],
+};
 
 export const statusOptions = <S extends string>(map: Record<S, { label: string }>): Option<S>[] =>
   (Object.keys(map) as S[]).map((value) => ({ value, label: map[value].label }));

@@ -1,6 +1,7 @@
 import { api } from "@/services/api-client";
 import type {
   DashboardData,
+  DocumentFile,
   DocumentOwner,
   Driver,
   FleetDocument,
@@ -131,14 +132,19 @@ export const fuelService = {
 
 export const documentsService = {
   list: (owner: DocumentOwner, params: ListParams = {}) => api.get<Paginated<FleetDocument>>("documents", { ...params, owner_type: owner }),
-  create: (form: FormData) => api.post<Resource<FleetDocument>>("documents", form),
-  /** Multipart updates use POST + _method=PUT because PHP only parses multipart bodies on POST. */
-  update: (owner: DocumentOwner, id: number, form: FormData) => {
-    form.set("_method", "PUT");
-    return api.post<Resource<FleetDocument>>(`documents/${owner}/${id}`, form);
-  },
+  /** Details only; files are added one at a time with addFile. */
+  create: (data: Record<string, unknown>) => api.post<Resource<FleetDocument>>("documents", data),
+  update: (owner: DocumentOwner, id: number, data: Record<string, unknown>) => api.put<Resource<FleetDocument>>(`documents/${owner}/${id}`, data),
+  get: (owner: DocumentOwner, id: number) => api.get<Resource<FleetDocument>>(`documents/${owner}/${id}`),
   remove: (owner: DocumentOwner, id: number) => api.delete<{ message: string }>(`documents/${owner}/${id}`),
-  downloadUrl: (owner: DocumentOwner, id: number) => api.url(`documents/${owner}/${id}/download`),
+  /** Adds one file; resolves only after the API has stored it. */
+  addFile: (owner: DocumentOwner, id: number, file: File, onProgress?: (fraction: number) => void) => {
+    const form = new FormData();
+    form.set("file", file);
+    return api.upload<{ data: DocumentFile; message: string }>(`documents/${owner}/${id}/files`, form, onProgress);
+  },
+  removeFile: (owner: DocumentOwner, id: number, fileId: number) => api.delete<{ message: string }>(`documents/${owner}/${id}/files/${fileId}`),
+  fileUrl: (file: DocumentFile, download = false) => api.url(file.path, download ? { download: 1 } : undefined),
 };
 
 export const monitoringService = {

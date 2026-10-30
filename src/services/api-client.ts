@@ -59,11 +59,48 @@ async function request<T>(method: string, path: string, { query, body, signal }:
   return payload as T;
 }
 
+/**
+ * POST a FormData body with upload progress (fetch cannot report it). Same error
+ * handling as `request`; resolves only once the API has answered.
+ */
+function upload<T>(path: string, body: FormData, onProgress?: (fraction: number) => void): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", buildUrl(path));
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.withCredentials = true;
+    if (onProgress) xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    xhr.onerror = () => reject(new ApiError("The upload was interrupted. Check your connection and try again.", 0));
+    xhr.onload = () => {
+      let payload: { message?: string; errors?: Record<string, string[]> } | null = null;
+      try {
+        payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        payload = null;
+      }
+      if (xhr.status === 401) {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.assign(`/login?expired=1&next=${next}`);
+        return reject(new ApiError("Your session has expired. Please sign in again.", 401));
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const message =
+          payload?.message ||
+          (xhr.status === 413 ? "The file is too large to upload." : xhr.status === 403 ? "You do not have permission to do that." : `Request failed (HTTP ${xhr.status}).`);
+        return reject(new ApiError(message, xhr.status, payload?.errors));
+      }
+      resolve(payload as T);
+    };
+    xhr.send(body);
+  });
+}
+
 export const api = {
   get: <T>(path: string, query?: Query, signal?: AbortSignal) => request<T>("GET", path, { query, signal }),
   post: <T>(path: string, body?: unknown) => request<T>("POST", path, { body }),
   put: <T>(path: string, body?: unknown) => request<T>("PUT", path, { body }),
   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, { body }),
   delete: <T>(path: string) => request<T>("DELETE", path),
+  upload,
   url: buildUrl,
 };

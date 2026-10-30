@@ -86,7 +86,7 @@ function defaults(r?: FuelRecord | null, vehicleId?: string): FormValues {
   };
 }
 
-const vehicleLabel = (v: Vehicle) => `${v.plate_number} - ${v.make} ${v.model} (${labelOf(BODY_TYPES, v.body_type ?? "") || labelOf(VEHICLE_TYPES, v.vehicle_type)})`;
+export const vehicleLabel = (v: Vehicle) => `${v.plate_number} - ${v.make} ${v.model} (${labelOf(BODY_TYPES, v.body_type ?? "") || labelOf(VEHICLE_TYPES, v.vehicle_type)})`;
 
 /** `/fleet/fuel/create` and `/fleet/fuel/[id]/edit` (same layout family as Add Vehicle / Add Driver). */
 export function FuelEditor({ recordId, defaultVehicleId }: { recordId?: number; defaultVehicleId?: string }) {
