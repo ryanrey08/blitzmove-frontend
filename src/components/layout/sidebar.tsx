@@ -99,7 +99,7 @@ export function Sidebar({ user, onNavigate, onLogout, loggingOut }: SidebarProps
               </button>
               {expanded && (
                 <ul className="mt-1 mb-2 ml-5 space-y-0.5 border-l border-white/10 pl-3">
-                  {group.items!.map((item) => {
+                  {group.items!.filter((item) => !item.hidden).map((item) => {
                     const itemActive = isActive(pathname, item.href);
                     return (
                       <li key={item.href}>

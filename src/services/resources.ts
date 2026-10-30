@@ -177,6 +177,24 @@ export interface VehicleTrack {
   image: string | null;
 }
 
+export interface MapViewport {
+  lng: number;
+  lat: number;
+  zoom: number;
+  /** Logical image size in pixels (the image itself is @2x). */
+  width: number;
+  height: number;
+}
+
+/** idle/offline are null when no GPS position had been reported by then. */
+export interface FleetSnapshot {
+  total: number;
+  on_route: number;
+  maintenance: number;
+  idle: number | null;
+  offline: number | null;
+}
+
 export const gpsService = {
   track: (vehicleId: number, limit = 200) => api.get<{ data: VehicleTrack; meta: { map_provider_configured: boolean } }>(`gps/vehicles/${vehicleId}/track`, { limit }),
   vehicles: () =>
@@ -188,6 +206,11 @@ export const gpsService = {
   /** Fleet map; positions come from the database, the client only picks pin labels and colors. */
   map: (body: { markers: { vehicle_id: number; label: string; color: string }[]; style: "streets" | "satellite"; traffic: boolean }) =>
     api.post<{ data: { image: string | null; plotted: number } }>("gps/map", body),
+  /** Fleet map without pins at a known center/zoom, so markers can be drawn over it. Omit lng/lat/zoom to fit `vehicle_ids`. */
+  viewport: (body: { vehicle_ids: number[]; lng?: number; lat?: number; zoom?: number; width: number; height: number; padding?: [number, number, number, number]; style: "streets" | "satellite"; traffic: boolean }) =>
+    api.post<{ data: { image: string | null; viewport: MapViewport } }>("gps/viewport", body),
+  /** Fleet status counts now and at the same time last month, rebuilt from trip, maintenance and GPS records. */
+  fleetTrend: () => api.get<{ data: { now: FleetSnapshot; last_month: FleetSnapshot } }>("gps/fleet-trend"),
   events: (limit = 15, vehicleId?: number) => api.get<{ data: TripEvent[] }>("gps/events", vehicleId ? { limit, vehicle_id: vehicleId } : { limit }),
 };
 

@@ -15,6 +15,8 @@ export interface NavLink {
   href: string;
   /** Modules shown in the menu but not built yet. */
   placeholder?: boolean;
+  /** Left out of the sidebar; the route still works. */
+  hidden?: boolean;
 }
 
 export interface NavGroup {
@@ -54,10 +56,10 @@ export const NAVIGATION: NavGroup[] = [
     label: "Tracking",
     icon: MapPin,
     items: [
-      { label: "Live Tracking", href: "/tracking/live-tracking", placeholder: true },
-      { label: "Geofences", href: "/tracking/geofences", placeholder: true },
-      { label: "Trip History", href: "/tracking/trip-history", placeholder: true },
-      { label: "Route Payback", href: "/tracking/route-payback", placeholder: true },
+      { label: "Live Tracking", href: "/tracking/live-tracking" },
+      { label: "Geofences", href: "/tracking/geofences", placeholder: true, hidden: true },
+      { label: "Trip History", href: "/tracking/trip-history", placeholder: true, hidden: true },
+      { label: "Route Payback", href: "/tracking/route-payback", placeholder: true, hidden: true },
     ],
   },
   {
