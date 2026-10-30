@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { ArrowLeft, Calculator, Camera, ChevronRight, ClipboardList, Eye, Fuel, History, ImagePlus, MoreVertical, Pencil, ReceiptText, Save, Trash2, Truck } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useForm, type UseFormSetError } from "react-hook-form";
 import { z } from "zod";
@@ -27,6 +27,8 @@ import { applyApiErrors, nullable } from "../shared";
 import { useFleetOptions } from "./use-fleet-options";
 
 export const FUEL_PATH = "/fleet/fuel";
+/** Pages that open the editor with ?return=… to come back to after saving or cancelling. */
+const RETURN_PATHS = ["/reports/fuel"];
 const MAX_RECEIPT_BYTES = 5 * 1024 * 1024;
 const NOTES_LIMIT = 255;
 const MAX_AMOUNT = 10_000;
@@ -108,6 +110,8 @@ export function FuelEditor({ recordId, defaultVehicleId }: { recordId?: number; 
 
 function FuelForm({ record, defaultVehicleId }: { record?: FuelRecord; defaultVehicleId?: string }) {
   const router = useRouter();
+  const returnTo = useSearchParams().get("return");
+  const backPath = returnTo && RETURN_PATHS.includes(returnTo) ? returnTo : FUEL_PATH;
   const notify = useToast();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -236,7 +240,7 @@ function FuelForm({ record, defaultVehicleId }: { record?: FuelRecord; defaultVe
             notify("The transaction was saved, but the receipt photo could not be uploaded. Add it again from Edit Fuel Transaction.", "error");
           }
         }
-        router.push(FUEL_PATH);
+        router.push(backPath);
       } catch (error) {
         setFormError(applyApiErrors(error, setError as UseFormSetError<FormValues>, FIELDS));
       } finally {
@@ -536,7 +540,7 @@ function FuelForm({ record, defaultVehicleId }: { record?: FuelRecord; defaultVe
 
       {/* Actions */}
       <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <Button variant="secondary" size="lg" onClick={() => router.push(FUEL_PATH)} className="min-w-32">
+        <Button variant="secondary" size="lg" onClick={() => router.push(backPath)} className="min-w-32">
           <ArrowLeft className="h-4 w-4" /> Cancel
         </Button>
         <Button type="submit" size="lg" loading={saving} className="min-w-48">

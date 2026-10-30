@@ -86,7 +86,7 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { label: "Overview", href: "/reports/overview" },
       { label: "Trip Reports", href: "/reports/trips", placeholder: true },
-      { label: "Fuel Reports", href: "/reports/fuel", placeholder: true },
+      { label: "Fuel Reports", href: "/reports/fuel" },
       { label: "Driver Reports", href: "/reports/drivers", placeholder: true },
       { label: "Maintenance Reports", href: "/reports/maintenance", placeholder: true },
       { label: "Geofence Reports", href: "/reports/geofences", placeholder: true },

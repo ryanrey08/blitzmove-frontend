@@ -83,8 +83,46 @@ export interface ReportDetail extends Report {
   };
 }
 
+export type FuelGroupBy = "vehicle" | "driver" | "date" | "fuel_type";
+
+/** Fuel Reports filters, on top of the period and vehicle/driver. A route is the origin and destination of the linked trip. */
+export interface FuelReportFilters extends ReportFilters {
+  fuel_type?: string;
+  payment_method?: string;
+  station?: string;
+  route_origin?: string;
+  route_destination?: string;
+  group_by?: FuelGroupBy;
+}
+
+/** Liters, cost and number of fuel records for one slice of a breakdown. */
+export interface FuelSlice {
+  key: string;
+  label: string;
+  liters: number;
+  cost: number;
+  transactions: number;
+}
+
+export interface FuelReport {
+  period: { from: string; to: string; days: number };
+  previous_period: { from: string; to: string };
+  /** Liters and cost are null when there are no fuel records; distance and efficiency need odometer readings. */
+  stats: Record<"fuel_liters" | "fuel_cost" | "efficiency_km_per_liter" | "distance_km" | "transactions", Compared>;
+  daily: { date: string; fuel_liters: number; fuel_cost: number }[];
+  group_by: FuelGroupBy;
+  /** By the chosen grouping: most liters first, or by date (7-day blocks from the period start). */
+  groups: FuelSlice[];
+  fuel_types: FuelSlice[];
+  /** Named stations only, highest cost first. */
+  stations: FuelSlice[];
+  /** Origin → destination of trips that have fuel records, for the route filter. */
+  routes: { origin: string; destination: string }[];
+}
+
 export const reportsService = {
   overview: (filters: ReportFilters) => api.get<{ data: ReportOverview }>("reports/overview", { ...filters }),
+  fuel: (filters: FuelReportFilters) => api.get<{ data: FuelReport }>("reports/fuel", { ...filters }),
   list: (params: ListParams = {}) => api.get<Paginated<Report>>("reports", params),
   get: (id: number) => api.get<Resource<ReportDetail>>(`reports/${id}`),
   create: (data: ReportFilters & { name: string; type: ReportType }) => api.post<Resource<Report>>("reports", data),

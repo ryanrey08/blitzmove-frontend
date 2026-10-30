@@ -33,7 +33,7 @@ export function Pagination({ meta, onPageChange, perPage, onPerPageChange, noun 
       <p className="text-sm text-ink-500">
         Showing {from} to {to} of {total} {noun}
       </p>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-center gap-3">
         <nav className="flex items-center gap-1" aria-label="Pagination">
           {showEdges && (
             <button className={cn(btn, "border-ink-200 bg-white hover:bg-ink-50")} disabled={page <= 1} onClick={() => onPageChange(1)} aria-label="First page">
