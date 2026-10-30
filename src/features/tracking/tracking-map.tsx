@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQueries, useQuery } from "@tanstack/react-query";
 import { ChevronDown, Info, Locate, Map as MapIcon, Maximize2, Minimize2, Minus, Plus, Truck } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { SearchInput } from "@/components/ui/search-input";
@@ -88,7 +88,7 @@ export function TrackingMap(props: TrackingMapProps) {
   const size = sizeKey ? { width: Number(sizeKey.split("x")[0]), height: Number(sizeKey.split("x")[1]) } : null;
 
   // Keep fitted pins (and their label cards) clear of the controls drawn over the map: top, right, bottom, left.
-  const padding: [number, number, number, number] = box && box.width >= 640 ? [140, 70, 40, 270] : [200, 70, 50, 40];
+  const padding: [number, number, number, number] = box && box.width >= 640 ? [100, 170, 50, 270] : [190, 150, 50, 40];
 
   const plotted = rows.filter((r) => r.vehicle.latest_location);
   const ids = plotted.map((r) => r.vehicle.id);
@@ -105,19 +105,44 @@ export function TrackingMap(props: TrackingMapProps) {
   const zoomBy = (delta: number) => vp && onView({ lng: vp.lng, lat: vp.lat, zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.round(vp.zoom) + delta)) });
   const selected = plotted.find((r) => r.vehicle.id === selectedId);
 
-  // Pixel position of each vehicle over the picture (object-cover scaling of the logical image).
-  const pins =
+  // Route lines are the positions each vehicle on a trip has reported since it set off; nothing is drawn
+  // for a trip without reports (planned routes are not stored).
+  const onTrip = plotted.filter((r) => LIVE_STATUS[r.status].group === "on_route").slice(0, 15);
+  const histories = useQueries({
+    queries: onTrip.map((r) => ({
+      queryKey: ["gps", "history", r.vehicle.id, props.refreshedAt],
+      queryFn: () => gpsService.history(r.vehicle.id, 200).then((res) => res.data),
+      enabled: providerConfigured,
+      placeholderData: keepPreviousData,
+    })),
+  });
+
+  // Pixel position over the picture (object-cover scaling of the logical image).
+  const toScreen =
     vp && box && map.data?.image
-      ? plotted.flatMap((r) => {
-          const { width: W, height: H } = box;
-          const scale = Math.max(W / vp.width, H / vp.height);
+      ? (lng: number, lat: number) => {
+          const scale = Math.max(box.width / vp.width, box.height / vp.height);
           const c = project(vp.lng, vp.lat, vp.zoom);
-          const p = project(r.vehicle.latest_location!.longitude, r.vehicle.latest_location!.latitude, vp.zoom);
-          const x = W / 2 + (p.x - c.x) * scale;
-          const y = H / 2 + (p.y - c.y) * scale;
-          return x < -20 || y < -20 || x > W + 20 || y > H + 20 ? [] : [{ row: r, x, y }];
-        })
-      : [];
+          const p = project(lng, lat, vp.zoom);
+          return { x: box.width / 2 + (p.x - c.x) * scale, y: box.height / 2 + (p.y - c.y) * scale };
+        }
+      : null;
+  const pins = toScreen
+    ? plotted.flatMap((r) => {
+        const { x, y } = toScreen(r.vehicle.latest_location!.longitude, r.vehicle.latest_location!.latitude);
+        return x < -20 || y < -20 || x > box!.width + 20 || y > box!.height + 20 ? [] : [{ row: r, x, y }];
+      })
+    : [];
+  const routes = toScreen
+    ? onTrip.flatMap((r, i) => {
+        const trip = r.vehicle.active_trip!;
+        const since = new Date(trip.actual_departure_at ?? trip.dispatched_at ?? trip.departure_at).getTime();
+        const points = (histories[i]?.data ?? []).filter((l) => new Date(l.recorded_at).getTime() >= since).reverse();
+        if (points.length < 2) return [];
+        // Delayed trips (past their estimated arrival) are drawn dashed red.
+        return [{ id: r.vehicle.id, delayed: r.status === "delayed", d: points.map((l) => toScreen(l.longitude, l.latitude)).map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ") }];
+      })
+    : [];
 
   const toggleGroup = (g: StatusGroup) => props.onGroups(props.groups.includes(g) ? props.groups.filter((x) => x !== g) : [...props.groups, g]);
   const trafficBlocked = style === "satellite";
@@ -132,6 +157,14 @@ export function TrackingMap(props: TrackingMapProps) {
           {map.isFetching || props.loading ? <LoadingState label="Loading map…" /> : <MapIcon className="h-9 w-9 text-ink-300" />}
           {!map.isFetching && !props.loading && <p className="max-w-72 text-sm text-ink-500">{!providerConfigured ? "Map provider not configured." : (map.error?.message ?? "The map could not be drawn.")}</p>}
         </div>
+      )}
+
+      {routes.length > 0 && (
+        <svg className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
+          {routes.map((r) => (
+            <polyline key={r.id} points={r.d} fill="none" stroke={r.delayed ? "#e30613" : "#16a34a"} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={r.delayed ? "8 6" : undefined} opacity={0.9} />
+          ))}
+        </svg>
       )}
 
       {/* Vehicle markers */}
@@ -150,7 +183,7 @@ export function TrackingMap(props: TrackingMapProps) {
             aria-label={`${r.vehicle.plate_number}, ${s.label}`}
           >
             {props.showLabels && (
-              <span className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 rounded-lg bg-white px-2 py-1 text-left text-[11px] leading-tight whitespace-nowrap shadow-md">
+              <span className="absolute top-0 left-full ml-1.5 rounded-lg bg-white px-2.5 py-1.5 text-left text-xs leading-tight whitespace-nowrap shadow-md">
                 <span className="block font-bold text-ink-900">{r.vehicle.plate_number}</span>
                 <span className="block font-medium" style={{ color: s.color }}>
                   {s.label}
@@ -159,8 +192,8 @@ export function TrackingMap(props: TrackingMapProps) {
               </span>
             )}
             <span className="flex flex-col items-center">
-              <span className={cn("flex h-8 w-8 items-center justify-center rounded-full border-2 border-white text-white shadow-md", active && "ring-4 ring-brand-500/40")} style={{ backgroundColor: s.color }}>
-                <Truck className="h-4 w-4" />
+              <span className={cn("flex h-9 w-9 items-center justify-center rounded-full border-2 border-white text-white shadow-md", active && "ring-4 ring-brand-500/40")} style={{ backgroundColor: s.color }}>
+                <Truck className="h-[18px] w-[18px]" />
               </span>
               <span className="-mt-0.5 h-2 w-2 rotate-45 border-r-2 border-b-2 border-white" style={{ backgroundColor: s.color }} />
             </span>
@@ -170,9 +203,9 @@ export function TrackingMap(props: TrackingMapProps) {
 
       {/* Top bar */}
       <div className="absolute inset-x-3 top-3 z-30 flex flex-wrap items-center gap-2">
-        <div className="flex overflow-hidden rounded-lg bg-white shadow-md">
+        <div className="flex gap-1 rounded-lg bg-white p-1 shadow-md">
           {(["streets", "satellite"] as const).map((s) => (
-            <button key={s} type="button" onClick={() => props.onStyle(s)} aria-pressed={style === s} className={cn("px-4 py-2 text-sm font-medium", style === s ? "bg-brand-600 text-white" : "text-ink-700 hover:bg-ink-50")}>
+            <button key={s} type="button" onClick={() => props.onStyle(s)} aria-pressed={style === s} className={cn("rounded-md px-5 py-1.5 text-sm font-semibold", style === s ? "bg-brand-600 text-white" : "text-ink-800 hover:bg-ink-50")}>
               {s === "streets" ? "Map" : "Satellite"}
             </button>
           ))}
@@ -216,8 +249,9 @@ export function TrackingMap(props: TrackingMapProps) {
             <label key={g.key} className="flex cursor-pointer items-center gap-2 text-sm text-ink-700">
               <input type="checkbox" className="h-4 w-4 accent-brand-600" checked={props.groups.includes(g.key)} onChange={() => toggleGroup(g.key)} />
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: g.color }} />
-              <span className="flex-1">{g.label}</span>
-              <span className="text-xs font-semibold text-ink-500">{props.counts[g.key]}</span>
+              <span>
+                {g.label} ({props.counts[g.key]})
+              </span>
             </label>
           ))}
         </div>

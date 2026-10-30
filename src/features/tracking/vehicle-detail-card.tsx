@@ -53,23 +53,23 @@ export function VehicleDetailCard({ vehicle: v, status, place, now, onClose, onV
   const left = trip ? remaining(trip.estimated_arrival_at, now) : null;
 
   return (
-    <Card className="flex min-h-[390px] flex-col">
+    <Card className="relative flex min-h-[390px] flex-col">
       <div className="flex gap-3 px-5 pt-5">
         {v.cover_photo ? (
           // eslint-disable-next-line @next/next/no-img-element -- authenticated API image
-          <img src={api.url(v.cover_photo)} alt={v.plate_number} className="h-14 w-20 shrink-0 rounded-lg object-cover" />
+          <img src={api.url(v.cover_photo)} alt={v.plate_number} className="h-14 w-20 shrink-0 rounded-lg object-cover 2xl:h-16 2xl:w-24" />
         ) : (
-          <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-400">
-            <Truck className="h-7 w-7" />
+          <span className="flex h-14 w-20 shrink-0 items-center justify-center rounded-lg bg-ink-100 text-ink-400 2xl:h-16 2xl:w-24">
+            <Truck className="h-8 w-8" />
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-2">
-            <p className="truncate text-lg leading-tight font-bold text-ink-900">{v.plate_number}</p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pr-6">
+            <p className="text-lg leading-tight font-bold whitespace-nowrap text-ink-900">{v.plate_number}</p>
             <Badge tone={s.tone} dot>
               {s.label}
             </Badge>
-            <button type="button" onClick={onClose} className="-mt-1 -mr-1 ml-auto rounded p-1 text-ink-500 hover:bg-ink-100" aria-label="Close vehicle details">
+            <button type="button" onClick={onClose} className="absolute top-3 right-3 rounded p-1 text-ink-500 hover:bg-ink-100" aria-label="Close vehicle details">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -201,15 +201,15 @@ export function VehicleDetailCard({ vehicle: v, status, place, now, onClose, onV
           title={loc ? undefined : "No GPS position reported"}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-2 py-2 text-sm font-semibold whitespace-nowrap text-ink-800 hover:bg-ink-50 disabled:opacity-40"
         >
-          <MapPin className="h-4 w-4 text-brand-600" /> View on Map
+          <MapPin className="h-4 w-4 text-sky-700" fill="currentColor" stroke="white" /> View on Map
         </button>
         {driver?.phone ? (
           <a href={`sms:${driver.phone.replace(/[^\d+]/g, "")}`} className="flex items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-2 py-2 text-sm font-semibold whitespace-nowrap text-ink-800 hover:bg-ink-50">
-            <MessageSquare className="h-4 w-4 text-sky-600" /> Message Driver
+            <MessageSquare className="h-4 w-4 text-sky-700" /> Message Driver
           </a>
         ) : (
           <button type="button" disabled title="No driver phone number on file" className="flex items-center justify-center gap-1.5 rounded-lg border border-ink-200 px-2 py-2 text-sm font-semibold whitespace-nowrap text-ink-800 opacity-40">
-            <MessageSquare className="h-4 w-4 text-sky-600" /> Message Driver
+            <MessageSquare className="h-4 w-4 text-sky-700" /> Message Driver
           </button>
         )}
       </div>
@@ -225,7 +225,7 @@ function Row({ icon: Icon, label, children }: { icon?: LucideIcon; label: string
         {Icon && <Icon className="h-4 w-4 text-ink-400" />}
         {label}
       </dt>
-      <dd className="min-w-0 truncate font-medium text-ink-900">{empty ? <span className="text-ink-400">—</span> : children}</dd>
+      <dd className="line-clamp-2 min-w-0 font-medium break-words text-ink-900">{empty ? <span className="text-ink-400">—</span> : children}</dd>
     </>
   );
 }

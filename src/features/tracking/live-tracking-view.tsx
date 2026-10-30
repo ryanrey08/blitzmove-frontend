@@ -2,25 +2,25 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertCircle,
   ArrowDown,
   ArrowUp,
-  BarChart3,
+  ChartNoAxesColumn,
+  ChevronDown,
   ChevronRight,
+  CircleAlert,
   Crosshair,
   Download,
+  Filter,
   Info,
   MapPin,
   MoreVertical,
   Navigation,
   Route,
   Settings,
-  SlidersHorizontal,
-  Square,
+  SquareStop,
   Truck,
   User,
   Wrench,
-  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -140,7 +140,7 @@ export function LiveTrackingView() {
             onClick={() => setLive((l) => !l)}
             aria-pressed={live}
             title={live ? "Auto-refreshing every 30 seconds. Click to pause." : "Paused. Click to resume auto-refresh."}
-            className={cn("flex h-10 items-center gap-2 rounded-full border bg-white px-4 text-sm font-semibold shadow-sm", live ? "border-ink-200 text-ink-900" : "border-ink-200 text-ink-500")}
+            className={cn("flex h-11 items-center gap-2 rounded-lg border bg-white px-4 text-sm font-semibold shadow-sm", live ? "border-ink-200 text-ink-900" : "border-ink-200 text-ink-500")}
           >
             <span className="relative flex h-2.5 w-2.5">
               {live && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand-500 opacity-60" />}
@@ -148,7 +148,7 @@ export function LiveTrackingView() {
             </span>
             {live ? "Live View" : "Paused"}
           </button>
-          <Link href="/tracking/geofences" className="flex h-10 items-center gap-2 rounded-full border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 shadow-sm hover:bg-ink-50">
+          <Link href="/tracking/geofences" className="flex h-11 items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 shadow-sm hover:bg-ink-50">
             <Crosshair className="h-4 w-4 text-ink-600" /> Geofences
           </Link>
           <MapSettings style={style} onStyle={setStyle} traffic={traffic} onTraffic={setTraffic} showLabels={showLabels} onShowLabels={setShowLabels} />
@@ -167,19 +167,19 @@ export function LiveTrackingView() {
 
       {/* Stat cards */}
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <Stat icon={Truck} tone="bg-sky-50 text-sky-600" label="Total Vehicles" value={gps.data ? rows.length : undefined}>
+        <Stat icon={<Truck className="h-8 w-8" />} tone="bg-sky-50 text-sky-600" label="Total Vehicles" value={gps.data ? rows.length : undefined}>
           <Delta now={t?.now.total} before={t?.last_month.total} />
         </Stat>
-        <Stat icon={MapPin} tone="bg-emerald-50 text-emerald-600" label="Vehicles On Route" value={gps.data ? counts.on_route : undefined} title="Vehicles on a dispatched or in-progress trip">
+        <Stat icon={<MapPin className="h-8 w-8" fill="currentColor" stroke="white" strokeWidth={1.5} />} tone="bg-emerald-50 text-emerald-600" label="Vehicles On Route" value={gps.data ? counts.on_route : undefined} title="Vehicles on a dispatched or in-progress trip">
           <Delta now={t?.now.on_route} before={t?.last_month.on_route} />
         </Stat>
-        <Stat icon={Square} tone="bg-red-50 text-brand-600" label="Idle Vehicles" value={gps.data ? counts.idle : undefined} title={`Reported a position in the last 15 minutes, no active trip`}>
+        <Stat icon={<SquareStop className="h-8 w-8" fill="currentColor" stroke="white" strokeWidth={1.75} />} tone="bg-red-50 text-brand-600" label="Idle Vehicles" value={gps.data ? counts.idle : undefined} title={`Reported a position in the last 15 minutes, no active trip`}>
           <Delta now={t?.now.idle} before={t?.last_month.idle} upIsBad />
         </Stat>
-        <Stat icon={Wrench} tone="bg-red-50 text-brand-600" label="In Maintenance" value={gps.data ? counts.maintenance : undefined} title="Vehicle status is Maintenance and no active trip">
+        <Stat icon={<Wrench className="h-8 w-8" fill="currentColor" />} tone="bg-red-50 text-brand-600" label="In Maintenance" value={gps.data ? counts.maintenance : undefined} title="Vehicle status is Maintenance and no active trip">
           <Delta now={t?.now.maintenance} before={t?.last_month.maintenance} upIsBad />
         </Stat>
-        <Stat icon={AlertCircle} tone="bg-red-50 text-brand-600" label="Offline Vehicles" value={gps.data ? counts.offline : undefined} title="No position in the last 15 minutes, or never reported">
+        <Stat icon={<CircleAlert className="h-8 w-8" fill="currentColor" stroke="white" strokeWidth={1.75} />} tone="bg-red-50 text-brand-600" label="Offline Vehicles" value={gps.data ? counts.offline : undefined} title="No position in the last 15 minutes, or never reported">
           <Delta now={t?.now.offline} before={t?.last_month.offline} upIsBad />
         </Stat>
       </div>
@@ -235,7 +235,7 @@ export function LiveTrackingView() {
             <Dropdown
               trigger={({ toggle }) => (
                 <button type="button" onClick={toggle} className={cn("flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium", status ? "border-brand-300 bg-brand-50 text-brand-700" : "border-ink-200 text-ink-700 hover:bg-ink-50")}>
-                  <SlidersHorizontal className="h-4 w-4" /> {status ? LIVE_STATUS[status].label : "Filter"}
+                  <Filter className="h-4 w-4" /> {status ? LIVE_STATUS[status].label : "Filter"} <ChevronDown className="h-4 w-4" />
                 </button>
               )}
               items={[{ label: "All statuses", onSelect: () => setStatus("") }, ...(Object.keys(LIVE_STATUS) as LiveStatus[]).map((s) => ({ label: LIVE_STATUS[s].label, onSelect: () => setStatus(s) }))]}
@@ -304,7 +304,7 @@ export function LiveTrackingView() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Badge tone={s.tone} dot className="rounded-full px-2.5 py-1">
+                        <Badge tone={s.tone} dot className="px-2.5 py-1">
                           {s.label}
                         </Badge>
                       </td>
@@ -331,8 +331,8 @@ export function LiveTrackingView() {
                         >
                           <MapPin className="h-4 w-4 text-sky-600" />
                         </button>
-                        <Link href={`${GPS_PATH}/${v.id}`} className="inline-flex rounded-md p-1.5 text-ink-600 hover:bg-ink-100" aria-label={`Tracking history for ${v.plate_number}`} title="Tracking history">
-                          <BarChart3 className="h-4 w-4" />
+                        <Link href={`${GPS_PATH}/${v.id}`} className="inline-flex rounded-md p-1.5 text-sky-600 hover:bg-ink-100" aria-label={`Tracking history for ${v.plate_number}`} title="Tracking history">
+                          <ChartNoAxesColumn className="h-4 w-4" />
                         </Link>
                         <Dropdown
                           trigger={({ toggle }) => (
@@ -382,7 +382,7 @@ function MapSettings(props: { style: MapStyle; onStyle: (s: MapStyle) => void; t
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex h-10 items-center gap-2 rounded-full border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 shadow-sm hover:bg-ink-50">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex h-11 items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 text-sm font-semibold text-ink-900 shadow-sm hover:bg-ink-50">
         <Settings className="h-4 w-4 text-ink-600" /> Map Settings
       </button>
       {open && (
@@ -410,12 +410,10 @@ function MapSettings(props: { style: MapStyle; onStyle: (s: MapStyle) => void; t
   );
 }
 
-function Stat({ icon: Icon, tone, label, value, title, children }: { icon: LucideIcon; tone: string; label: string; value: ReactNode | undefined; title?: string; children?: ReactNode }) {
+function Stat({ icon, tone, label, value, title, children }: { icon: ReactNode; tone: string; label: string; value: ReactNode | undefined; title?: string; children?: ReactNode }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-ink-100 bg-white p-4 shadow-card" title={title}>
-      <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl 2xl:h-14 2xl:w-14", tone)}>
-        <Icon className="h-6 w-6 2xl:h-7 2xl:w-7" />
-      </span>
+      <span className={cn("flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl 2xl:h-16 2xl:w-16", tone)}>{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-tight font-semibold text-ink-700">{label}</p>
         {value === undefined ? <span className="mt-1 block h-8 w-14 animate-pulse rounded bg-ink-100" /> : <p className="text-3xl leading-tight font-bold text-ink-900">{value}</p>}
@@ -441,8 +439,8 @@ function Delta({ now, before, upIsBad }: { now: number | null | undefined; befor
       ) : now === before ? (
         <span className="block font-semibold text-ink-500">0%</span>
       ) : (
-        <span className={cn("flex items-center gap-1 font-semibold", good ? "text-emerald-600" : "text-brand-600")}>
-          {up ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />}
+        <span className={cn("flex items-center gap-1 text-base font-bold", good ? "text-emerald-600" : "text-brand-600")}>
+          {up ? <ArrowUp className="h-4 w-4" strokeWidth={2.5} /> : <ArrowDown className="h-4 w-4" strokeWidth={2.5} />}
           {before ? `${Math.round((Math.abs(now - before) / before) * 100)}%` : "new"}
         </span>
       )}

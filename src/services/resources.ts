@@ -211,6 +211,8 @@ export const gpsService = {
     api.post<{ data: { image: string | null; viewport: MapViewport } }>("gps/viewport", body),
   /** Fleet status counts now and at the same time last month, rebuilt from trip, maintenance and GPS records. */
   fleetTrend: () => api.get<{ data: { now: FleetSnapshot; last_month: FleetSnapshot } }>("gps/fleet-trend"),
+  /** Reported positions for one vehicle, newest first. */
+  history: (vehicleId: number, limit = 100) => api.get<{ data: VehicleLocation[] }>(`gps/vehicles/${vehicleId}/history`, { limit }),
   events: (limit = 15, vehicleId?: number) => api.get<{ data: TripEvent[] }>("gps/events", vehicleId ? { limit, vehicle_id: vehicleId } : { limit }),
 };
 
