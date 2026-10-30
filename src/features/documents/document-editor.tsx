@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronRight, CircleCheck, CloudUpload, Download, Eye, FileText, Info, MoreVertical, Replace, Save, Trash2, Upload } from "lucide-react";
+import { ChevronRight, CircleCheck, CloudUpload, Download, Eye, FileCheck2, FileText, FileUp, Info, MoreVertical, Replace, Save, Trash2, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type DragEvent } from "react";
@@ -38,7 +38,7 @@ const schema = z
     document_type: z.string().min(1, "Select a document category."),
     title: z.string().trim().min(1, "Document name is required.").max(255),
     document_number: z.string().trim().min(1, "Document number is required.").max(80),
-    issued_at: z.string().min(1, "Issue date is required."),
+    issued_at: z.string(),
     expires_at: z.string().min(1, "Expiry date is required."),
     issuing_authority: z.string().trim().max(120),
     notes: z.string().max(NOTES_LIMIT, `Up to ${NOTES_LIMIT} characters.`),
@@ -347,7 +347,7 @@ function DocumentForm({ document, defaultOwner, defaultOwnerId }: { document?: F
                       checked={ownerType === o}
                       disabled={locked && ownerType !== o}
                       onChange={() => chooseOwnerType(o)}
-                      className="h-4 w-4 accent-brand-600"
+                      className="h-4 w-4 accent-blue-600"
                     />
                     {o === "vehicle" ? "Vehicle" : "Driver"}
                   </label>
@@ -385,29 +385,31 @@ function DocumentForm({ document, defaultOwner, defaultOwnerId }: { document?: F
               <Input id="document_number" placeholder="e.g. CR-2023-00123" invalid={!!errors.document_number} {...register("document_number")} />
             </Field>
 
-            <Field label="Issue Date" htmlFor="issued_at" error={errors.issued_at?.message} required>
+            <Field label="Issue Date" htmlFor="issued_at" error={errors.issued_at?.message}>
               <Input id="issued_at" type="date" invalid={!!errors.issued_at} {...register("issued_at")} />
             </Field>
             <Field label="Expiry Date" htmlFor="expires_at" error={errors.expires_at?.message} required>
               <Input id="expires_at" type="date" min={values.issued_at || undefined} invalid={!!errors.expires_at} {...register("expires_at")} />
             </Field>
 
-            <Field label="Issuing Authority" htmlFor="issuing_authority" error={errors.issuing_authority?.message}>
+            <Field label="Issuing Authority" htmlFor="issuing_authority" error={errors.issuing_authority?.message} className="sm:col-span-2">
               <Input id="issuing_authority" placeholder="e.g. LTO" invalid={!!errors.issuing_authority} {...register("issuing_authority")} />
             </Field>
 
             <Field label="Remarks" htmlFor="notes" error={errors.notes?.message} className="sm:col-span-2">
-              <Textarea id="notes" rows={4} maxLength={NOTES_LIMIT} placeholder="Anything worth noting about this document" invalid={!!errors.notes} {...register("notes")} />
-              <p className="mt-1 text-right text-xs text-ink-500">
-                {values.notes.length}/{NOTES_LIMIT}
-              </p>
+              <div className="relative">
+                <Textarea id="notes" rows={4} maxLength={NOTES_LIMIT} placeholder="Anything worth noting about this document" invalid={!!errors.notes} className="pb-7" {...register("notes")} />
+                <span className="pointer-events-none absolute right-3 bottom-2 text-xs text-ink-400">
+                  {values.notes.length}/{NOTES_LIMIT}
+                </span>
+              </div>
             </Field>
           </CardBody>
         </Card>
 
         {/* Files */}
         <Card>
-          <CardHeader title="Upload Files" icon={<CloudUpload />} />
+          <CardHeader title="Upload Files" icon={<FileUp />} />
           <CardBody className="space-y-5">
             <div
               onDragOver={(e) => {
@@ -418,15 +420,20 @@ function DocumentForm({ document, defaultOwner, defaultOwnerId }: { document?: F
               onDrop={onDrop}
               className={cn(
                 "flex flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors",
-                dragging ? "border-brand-500 bg-brand-50" : "border-ink-200 bg-ink-50/50",
+                dragging ? "border-blue-500 bg-blue-50" : "border-ink-200 bg-ink-50/40",
               )}
             >
-              <CloudUpload className="h-12 w-12 text-brand-600" strokeWidth={1.5} />
-              <p className="mt-3 text-sm font-medium text-ink-800">Drag and drop files here</p>
+              <CloudUpload className="h-12 w-12 text-blue-600" strokeWidth={1.75} />
+              <p className="mt-3 text-sm font-semibold text-ink-900">Drag and drop files here</p>
               <p className="my-2 text-xs text-ink-500">or</p>
-              <Button variant="secondary" size="sm" onClick={() => pick()} disabled={saving || totalFiles >= MAX_FILES} className="border-brand-600 text-brand-600 hover:bg-brand-50">
+              <button
+                type="button"
+                onClick={() => pick()}
+                disabled={saving || totalFiles >= MAX_FILES}
+                className="rounded-lg border border-blue-600 bg-blue-50/60 px-10 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 Browse Files
-              </Button>
+              </button>
               <p className="mt-3 text-xs text-ink-500">Supported formats: PDF, JPG, PNG (Max 10MB per file)</p>
             </div>
             <input
@@ -443,14 +450,15 @@ function DocumentForm({ document, defaultOwner, defaultOwnerId }: { document?: F
             />
 
             <div>
-              <h3 className="text-sm font-semibold text-ink-900">
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-ink-900">
+                <FileCheck2 className="h-4 w-4 text-ink-800" />
                 Uploaded Files ({uploadedCount})
                 {pending.length > 0 && <span className="ml-1 font-normal text-ink-500">· {pending.length} waiting to upload</span>}
               </h3>
               {totalFiles === 0 ? (
                 <p className="mt-2 rounded-lg border border-ink-100 px-4 py-5 text-center text-sm text-ink-500">No files yet. Add at least one file.</p>
               ) : (
-                <ul className="mt-2 divide-y divide-ink-100 rounded-lg border border-ink-100">
+                <ul className="mt-3 space-y-2">
                   {visibleStored.map((f) => (
                     <FileRow
                       key={`s${f.id}`}
@@ -491,14 +499,12 @@ function DocumentForm({ document, defaultOwner, defaultOwnerId }: { document?: F
               )}
             </div>
 
-            <div className="flex gap-3 rounded-lg border border-sky-100 bg-sky-50 p-4 text-sm text-sky-900">
-              <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" />
+            <div className="flex items-start gap-3 rounded-lg bg-blue-50 p-4 text-sm text-ink-700">
+              <Info className="mt-0.5 h-5 w-5 shrink-0 fill-blue-600 text-white" />
               <p>
                 You can upload multiple files for the same document.
                 <br />
-                Accepted file types: PDF, JPG, PNG.
-                <br />
-                Maximum file size: 10MB per file.
+                Accepted file types: PDF, JPG, PNG. Maximum file size: 10MB per file.
               </p>
             </div>
           </CardBody>
@@ -525,13 +531,18 @@ function FileRow({ name, meta, thumbnail, state, actions }: { name: string; meta
   const percent = state.status === "uploaded" ? 100 : state.status === "uploading" ? Math.round(state.progress * 100) : 0;
 
   return (
-    <li className="flex items-center gap-3 px-3 py-3">
+    <li className="flex items-center gap-4 rounded-lg bg-ink-50 p-3">
       {thumbnail ? (
         // eslint-disable-next-line @next/next/no-img-element -- local preview or served by the API
-        <img src={thumbnail} alt="" className="h-11 w-11 shrink-0 rounded-md border border-ink-100 object-cover" />
+        <img src={thumbnail} alt="" className="h-20 w-16 shrink-0 rounded-md border border-ink-200 bg-white object-cover shadow-sm" />
       ) : (
-        <span className={cn("flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-md text-[10px] font-bold", pdf ? "bg-brand-50 text-brand-600" : "bg-ink-100 text-ink-600")}>
-          <FileText className="h-5 w-5" />
+        <span
+          className={cn(
+            "flex h-20 w-16 shrink-0 flex-col items-center justify-center gap-1 rounded-md border border-ink-200 bg-white text-[10px] font-bold shadow-sm",
+            pdf ? "text-brand-600" : "text-ink-600",
+          )}
+        >
+          <FileText className="h-7 w-7" strokeWidth={1.5} />
           {pdf ? "PDF" : extensionOf(name).toUpperCase()}
         </span>
       )}
@@ -542,7 +553,7 @@ function FileRow({ name, meta, thumbnail, state, actions }: { name: string; meta
           </span>
           {state.status === "uploaded" && <CircleCheck className="h-4 w-4 shrink-0 text-emerald-600" aria-label="Uploaded" />}
         </p>
-        <p className="text-xs text-ink-500">
+        <p className="mt-0.5 text-xs text-ink-500">
           {meta}
           {state.status === "ready" && " • Uploads when you save"}
           {state.status === "uploading" && ` • Uploading ${percent}%`}
@@ -553,7 +564,7 @@ function FileRow({ name, meta, thumbnail, state, actions }: { name: string; meta
           </p>
         ) : (
           <div className="mt-1.5 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-100">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-200">
               <div className={cn("h-full rounded-full transition-[width]", state.status === "uploaded" ? "bg-emerald-500" : "bg-brand-600")} style={{ width: `${percent}%` }} />
             </div>
             {state.status === "uploaded" && <span className="text-xs text-ink-500 tabular-nums">100%</span>}
