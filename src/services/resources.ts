@@ -8,6 +8,8 @@ import type {
   FuelRecord,
   FuelSummary,
   ListParams,
+  MaintenanceRecord,
+  MaintenanceSummary,
   MonitoringData,
   Order,
   OrderStatus,
@@ -144,6 +146,22 @@ export const documentsService = {
     return api.upload<{ data: DocumentFile; message: string }>(`documents/${owner}/${id}/files`, form, onProgress);
   },
   removeFile: (owner: DocumentOwner, id: number, fileId: number) => api.delete<{ message: string }>(`documents/${owner}/${id}/files/${fileId}`),
+  fileUrl: (file: DocumentFile, download = false) => api.url(file.path, download ? { download: 1 } : undefined),
+};
+
+export const maintenanceService = {
+  ...crud<MaintenanceRecord>("maintenance-records"),
+  summary: (params: ListParams = {}) => api.get<{ data: MaintenanceSummary }>("maintenance-records/summary", params),
+  nextNumber: () => api.get<{ data: { reference_number: string } }>("maintenance-records/next-number"),
+  /** Service providers and assignees used before, most frequent first. */
+  options: () => api.get<{ data: { service_providers: string[]; assignees: string[] } }>("maintenance-records/options"),
+  /** Adds one attachment; resolves only after the API has stored it. */
+  addFile: (id: number, file: File, onProgress?: (fraction: number) => void) => {
+    const form = new FormData();
+    form.set("file", file);
+    return api.upload<{ data: DocumentFile; message: string }>(`maintenance-records/${id}/files`, form, onProgress);
+  },
+  removeFile: (file: DocumentFile) => api.delete<{ message: string }>(file.path),
   fileUrl: (file: DocumentFile, download = false) => api.url(file.path, download ? { download: 1 } : undefined),
 };
 

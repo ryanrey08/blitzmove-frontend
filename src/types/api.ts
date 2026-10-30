@@ -270,6 +270,68 @@ export interface FuelRecord {
   created_at: string;
 }
 
+export type MaintenanceType =
+  | "preventive_maintenance"
+  | "oil_change"
+  | "tire_service"
+  | "brake_service"
+  | "engine_repair"
+  | "transmission_service"
+  | "electrical"
+  | "aircon_service"
+  | "suspension"
+  | "body_repair"
+  | "inspection"
+  | "other";
+export type MaintenanceCategory = "preventive" | "corrective" | "inspection" | "emergency";
+export type MaintenanceStatus = "scheduled" | "in_progress" | "completed" | "cancelled";
+/** Stored status, with scheduled work shown as due_soon / overdue by its date. */
+export type MaintenanceDisplayStatus = MaintenanceStatus | "due_soon" | "overdue";
+
+export interface MaintenancePart {
+  name: string;
+  quantity: number;
+  unit_cost: number;
+}
+
+export interface MaintenanceRecord {
+  id: number;
+  reference_number: string;
+  vehicle_id: number;
+  vehicle?: Vehicle;
+  service_type: MaintenanceType;
+  category: MaintenanceCategory;
+  status: MaintenanceStatus;
+  display_status: MaintenanceDisplayStatus;
+  /** "Next Due" while the work is open. */
+  scheduled_date: string;
+  /** The day the work was done. */
+  service_date: string | null;
+  /** Previous completed service of the same type on this vehicle. */
+  last_service_date?: string | null;
+  odometer_km: number | null;
+  estimated_cost: number | null;
+  actual_cost: number | null;
+  parts_total: number;
+  service_provider: string | null;
+  assigned_to: string | null;
+  reminder_days: number | null;
+  description: string | null;
+  parts: MaintenancePart[];
+  checklist: { item: string; done: boolean }[];
+  notes: string | null;
+  files?: DocumentFile[];
+  files_count?: number;
+  started_at: string | null;
+  completed_at: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Card counts now and the same figure a month earlier. */
+export type MaintenanceSummary = Record<"total" | "upcoming" | "overdue" | "completed_this_month" | "in_progress", { count: number; previous: number }>;
+
 export interface DocumentFile {
   id: number;
   original_name: string;

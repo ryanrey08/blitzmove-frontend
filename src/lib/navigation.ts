@@ -46,6 +46,7 @@ export const NAVIGATION: NavGroup[] = [
       { label: "Drivers", href: "/fleet/drivers" },
       { label: "Fuel Management", href: "/fleet/fuel" },
       { label: "Documents", href: "/fleet/documents" },
+      { label: "Maintenance", href: "/fleet/maintenance" },
       { label: "Monitoring", href: "/fleet/monitoring" },
     ],
   },

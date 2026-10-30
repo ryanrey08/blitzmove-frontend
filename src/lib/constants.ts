@@ -5,6 +5,9 @@ import type {
   FuelType,
   PaymentMethod,
   LicenseType,
+  MaintenanceCategory,
+  MaintenanceDisplayStatus,
+  MaintenanceType,
   OrderStatus,
   StopStatus,
   StopActivity,
@@ -190,6 +193,52 @@ export const DOCUMENT_GROUPS: Record<"vehicle" | "driver", DocumentGroup[]> = {
     { value: "other", label: "Other", categories: ["other"] },
   ],
 };
+
+export const MAINTENANCE_TYPES = options<MaintenanceType>({
+  preventive_maintenance: "Preventive Maintenance (PMS)",
+  oil_change: "Oil Change",
+  tire_service: "Tire Service",
+  brake_service: "Brake Service",
+  engine_repair: "Engine Repair",
+  transmission_service: "Transmission Service",
+  electrical: "Electrical",
+  aircon_service: "Aircon Service",
+  suspension: "Suspension",
+  body_repair: "Body Repair",
+  inspection: "Inspection",
+  other: "Other",
+});
+
+export const MAINTENANCE_CATEGORIES = options<MaintenanceCategory>({ preventive: "Preventive", corrective: "Corrective", inspection: "Inspection", emergency: "Emergency" });
+
+/** Badge per display status; Scheduled / In Progress / Completed / Cancelled are the stored ones. */
+export const MAINTENANCE_STATUS: Record<MaintenanceDisplayStatus, { label: string; tone: Tone }> = {
+  scheduled: { label: "Scheduled", tone: "blue" },
+  due_soon: { label: "Due Soon", tone: "amber" },
+  overdue: { label: "Overdue", tone: "red" },
+  in_progress: { label: "In Progress", tone: "violet" },
+  completed: { label: "Completed", tone: "green" },
+  cancelled: { label: "Cancelled", tone: "gray" },
+};
+
+export const MAINTENANCE_STORED_STATUSES: Option[] = ["scheduled", "in_progress", "completed", "cancelled"].map((value) => ({
+  value,
+  label: MAINTENANCE_STATUS[value as MaintenanceDisplayStatus].label,
+}));
+
+export const MAINTENANCE_REMINDERS: Option[] = [1, 3, 7, 14, 30].map((n) => ({ value: String(n), label: `${n} day${n === 1 ? "" : "s"} before` }));
+
+/** Default service checklist (the items can be ticked per record). */
+export const MAINTENANCE_CHECKLIST = [
+  "Engine oil and filter",
+  "Brake inspection",
+  "Lights and electrical",
+  "Tire condition and pressure",
+  "Transmission fluid",
+  "Coolant and radiator",
+  "Aircon check",
+  "General cleaning",
+];
 
 export const statusOptions = <S extends string>(map: Record<S, { label: string }>): Option<S>[] =>
   (Object.keys(map) as S[]).map((value) => ({ value, label: map[value].label }));
