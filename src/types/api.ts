@@ -390,23 +390,36 @@ export interface DashboardData {
   active_trips: Trip[];
 }
 
+/** One day's totals on the Monitoring page; null where there is no source data. */
+export interface MonitoringDay {
+  completed: number;
+  delayed: number;
+  cancelled: number;
+  /** Planned distance of trips completed that day. */
+  distance_km: number;
+  /** Liters entered in fuel records that day. */
+  fuel_liters: number;
+  /** Average of moving GPS samples; null when no device reported a speed. */
+  average_speed_kph: number | null;
+  gps_samples: number;
+}
+
 export interface MonitoringData {
-  vehicle_status: StatusCount<VehicleStatus>[];
-  driver_status: StatusCount<DriverStatus>[];
-  utilization: {
-    vehicles_total: number;
-    vehicles_available: number;
-    vehicles_on_trip: number;
-    drivers_total: number;
-    drivers_available: number;
-    drivers_on_trip: number;
-  };
-  active_assignments: Trip[];
-  upcoming_trips: Trip[];
-  vehicles: Vehicle[];
-  expiring_vehicle_documents: FleetDocument[];
-  expiring_driver_documents: FleetDocument[];
-  expiring_licenses: Driver[];
+  active_trips: { total: number; on_time: number; delayed: number; cancelled_today: number };
+  today: MonitoringDay;
+  /** The same weekday last week (whole day). */
+  last_week: MonitoringDay;
+  gps: { has_data: boolean; last_reported_at: string | null };
+}
+
+export interface TripEvent {
+  at: string;
+  type: "dispatched" | "departed" | "arrived" | "skipped" | "completed";
+  vehicle_id: number;
+  trip_id: number;
+  trip_number: string;
+  location: string;
+  text: string;
 }
 
 export interface FuelSummary {

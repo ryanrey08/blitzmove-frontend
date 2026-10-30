@@ -19,6 +19,7 @@ import type {
   StopStatus,
   StatusCount,
   Trip,
+  TripEvent,
   TripStatus,
   TripStop,
   Vehicle,
@@ -187,7 +188,7 @@ export const gpsService = {
   /** Fleet map; positions come from the database, the client only picks pin labels and colors. */
   map: (body: { markers: { vehicle_id: number; label: string; color: string }[]; style: "streets" | "satellite"; traffic: boolean }) =>
     api.post<{ data: { image: string | null; plotted: number } }>("gps/map", body),
-  events: (limit = 15) => api.get<{ data: { at: string; type: "dispatched" | "departed" | "arrived" | "skipped" | "completed"; text: string }[] }>("gps/events", { limit }),
+  events: (limit = 15, vehicleId?: number) => api.get<{ data: TripEvent[] }>("gps/events", vehicleId ? { limit, vehicle_id: vehicleId } : { limit }),
 };
 
 export interface RoutePreview {
