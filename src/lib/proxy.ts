@@ -19,3 +19,12 @@ export function isSameOrigin(request: NextRequest): boolean {
     return false;
   }
 }
+
+/**
+ * Passes the visitor's IP on to Laravel so its rate limits apply per visitor, not to this server.
+ * X-Real-IP is set by the host nginx in front of Next.js; without it (local dev) nothing is sent.
+ */
+export function clientIpHeaders(request: NextRequest): Record<string, string> {
+  const ip = request.headers.get("x-real-ip");
+  return ip ? { "X-Forwarded-For": ip } : {};
+}

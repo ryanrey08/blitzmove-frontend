@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_BASE } from "@/lib/config";
-import { isSameOrigin } from "@/lib/proxy";
+import { clientIpHeaders, isSameOrigin } from "@/lib/proxy";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) {
@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
   try {
     const upstream = await fetch(`${API_BASE}/auth/forgot-password`, {
       method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      headers: { Accept: "application/json", "Content-Type": "application/json", ...clientIpHeaders(request) },
       body: JSON.stringify(await request.json().catch(() => ({}))),
       cache: "no-store",
     });

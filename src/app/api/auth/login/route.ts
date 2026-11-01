@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_BASE } from "@/lib/config";
-import { isSameOrigin } from "@/lib/proxy";
+import { clientIpHeaders, isSameOrigin } from "@/lib/proxy";
 import { sessionCookieOptions } from "@/lib/session";
 
 interface LoginResponse {
@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
+        ...clientIpHeaders(request),
       },
       body: JSON.stringify({ email: body.email, password: body.password, remember: Boolean(body.remember), device_name: "web" }),
       cache: "no-store",

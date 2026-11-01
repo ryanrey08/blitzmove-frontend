@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { API_BASE, SESSION_COOKIE } from "@/lib/config";
-import { isSameOrigin } from "@/lib/proxy";
+import { clientIpHeaders, isSameOrigin } from "@/lib/proxy";
 
 /**
  * Same-origin gateway to the Laravel API. The browser never sees the Sanctum
@@ -27,6 +27,7 @@ async function forward(request: NextRequest, { params }: { params: Promise<{ pat
   const headers: Record<string, string> = {
     Accept: request.headers.get("accept") ?? "application/json",
     Authorization: `Bearer ${token}`,
+    ...clientIpHeaders(request),
   };
   const contentType = request.headers.get("content-type");
   if (contentType) headers["Content-Type"] = contentType;
