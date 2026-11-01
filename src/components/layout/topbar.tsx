@@ -5,17 +5,14 @@ import { useRouter } from "next/navigation";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown } from "@/components/ui/dropdown";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useLogout } from "@/hooks/use-logout";
 import { humanize } from "@/lib/utils";
-import type { User } from "@/types/api";
 
-interface TopbarProps {
-  user: User;
-  onMenuClick: () => void;
-  onLogout: () => void;
-}
-
-export function Topbar({ user, onMenuClick, onLogout }: TopbarProps) {
+export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const router = useRouter();
+  const user = useCurrentUser();
+  const { logout } = useLogout();
 
   return (
     <header className="sticky top-0 z-20 flex h-[4.5rem] print:hidden items-center gap-3 border-b border-ink-100 bg-white/95 px-4 backdrop-blur sm:gap-5 sm:px-6">
@@ -37,7 +34,7 @@ export function Topbar({ user, onMenuClick, onLogout }: TopbarProps) {
           )}
           items={[
             { label: "Profile", icon: <UserCircle />, onSelect: () => router.push("/settings/profile") },
-            { label: "Logout", icon: <LogOut />, onSelect: onLogout, danger: true },
+            { label: "Logout", icon: <LogOut />, onSelect: logout, danger: true },
           ]}
         />
       </div>

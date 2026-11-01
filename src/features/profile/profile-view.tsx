@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { formatDateTime, humanize } from "@/lib/utils";
-import { authService } from "@/services/auth";
+import { useUpdatePasswordMutation, useUpdateProfileMutation } from "@/store/services/authApi";
 import { passwordRules } from "../auth/schemas";
 import { applyApiErrors, nullable } from "../shared";
 
@@ -33,6 +33,7 @@ function ProfileForm() {
   const user = useCurrentUser();
   const router = useRouter();
   const notify = useToast();
+  const [updateProfile] = useUpdateProfileMutation();
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -47,7 +48,7 @@ function ProfileForm() {
   const submit = handleSubmit(async (values) => {
     setFormError(null);
     try {
-      await authService.updateProfile(nullable(values));
+      await updateProfile(nullable(values)).unwrap();
       notify("Profile updated.");
       router.refresh();
     } catch (error) {
@@ -83,6 +84,7 @@ function ProfileForm() {
 
 function PasswordForm() {
   const notify = useToast();
+  const [updatePassword] = useUpdatePasswordMutation();
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -95,7 +97,7 @@ function PasswordForm() {
   const submit = handleSubmit(async (values) => {
     setFormError(null);
     try {
-      notify((await authService.updatePassword(values)).message);
+      notify((await updatePassword(values).unwrap()).message);
       reset();
     } catch (error) {
       setFormError(applyApiErrors(error, setError, ["current_password", "password", "password_confirmation"]));

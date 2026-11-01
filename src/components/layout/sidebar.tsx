@@ -6,9 +6,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/layout/logo";
 import { Avatar } from "@/components/ui/avatar";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { useLogout } from "@/hooks/use-logout";
 import { NAVIGATION, type NavGroup } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-import type { User } from "@/types/api";
+import { useAppDispatch } from "@/store/hooks";
+import { mobileNavClosed } from "@/store/slices/uiSlice";
 
 const STORAGE_KEY = "bm.sidebar.open-groups";
 
@@ -20,15 +23,12 @@ function groupIsActive(pathname: string, group: NavGroup) {
   return group.href ? isActive(pathname, group.href) : !!group.items?.some((item) => isActive(pathname, item.href));
 }
 
-interface SidebarProps {
-  user: User;
-  onNavigate?: () => void;
-  onLogout: () => void;
-  loggingOut?: boolean;
-}
-
-export function Sidebar({ user, onNavigate, onLogout, loggingOut }: SidebarProps) {
+export function Sidebar() {
   const pathname = usePathname();
+  const user = useCurrentUser();
+  const dispatch = useAppDispatch();
+  const { logout: onLogout, signingOut: loggingOut } = useLogout();
+  const onNavigate = () => dispatch(mobileNavClosed());
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   // Restore expanded groups, and always expand the group holding the current page.
