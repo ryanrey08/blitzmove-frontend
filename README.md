@@ -5,7 +5,7 @@ Next.js 15 (App Router) console for BlitzMove. See the root README for architect
 ```bash
 npm install
 cp .env.example .env.local   # API_URL=http://localhost:8000
-npm run dev
+npm run dev                  # Turbopack: first visit to a page compiles in ~1-2 s
 npm run lint && npx tsc --noEmit && npm run build
 ```
 

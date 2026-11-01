@@ -2,7 +2,8 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
-import { useEffect, useLayoutEffect, type ReactNode } from "react";
+import { Suspense, useEffect, useLayoutEffect, type ReactNode } from "react";
+import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { cn } from "@/lib/utils";
@@ -75,6 +76,9 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
 
   return (
     <div className="min-h-screen">
+      <Suspense>
+        <NavigationProgress />
+      </Suspense>
       {/* Navigation is left out when printing (trip sheets, itineraries). */}
       <aside className={cn("fixed inset-y-0 left-0 z-30 hidden w-[17rem] transition-transform lg:block print:hidden", collapsed && "-translate-x-full")}>
         <Sidebar />
