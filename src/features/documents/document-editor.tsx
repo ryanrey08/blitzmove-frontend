@@ -82,7 +82,8 @@ let keySeq = 0;
 
 /** `/fleet/documents/upload` and `/fleet/documents/[owner]/[id]/edit` (same layout family as Add Vehicle / Add Fuel Transaction). */
 export function DocumentEditor({ owner, documentId, defaultOwnerId }: { owner?: DocumentOwner; documentId?: number; defaultOwnerId?: string }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can(documentId ? "documents.update" : "documents.create");
   const existing = useQuery({
     queryKey: ["documents", owner, documentId, "form"],
     queryFn: () => documentsService.get(owner!, documentId!).then((r) => r.data),

@@ -25,7 +25,8 @@ export const ROUTE_PLANNING_PATH = "/transportation/route-optimization";
  * optimisation, distances and travel times require a configured routing provider.
  */
 export function RouteOptimizationTripView({ tripId }: { tripId: number }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("trips.update");
   const routing = useQuery({ queryKey: ["routing", "status"], queryFn: routingService.status, staleTime: 300_000 });
   const { data, isLoading, error, refetch } = useTrip(tripId);
   const trip = data?.data;

@@ -72,7 +72,8 @@ function trackingStatus(v: Vehicle): TrackingStatus {
 
 export function GpsTrackingView() {
   const router = useRouter();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("trips.create");
   const mapRef = useRef<HTMLDivElement>(null);
   const [search, setSearch] = useState("");
   const [mapSearch, setMapSearch] = useState("");

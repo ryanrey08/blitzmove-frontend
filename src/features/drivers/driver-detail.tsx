@@ -24,7 +24,8 @@ import { DRIVERS_PATH } from "./drivers-view";
 
 /** `/fleet/drivers/[id]`: the full driver profile (the list's side panel is the quick view). */
 export function DriverDetail({ id }: { id: number }) {
-  const { canManageFleet } = usePermissions();
+  const { can } = usePermissions();
+  const canManageFleet = can("drivers.update");
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["driver", id], queryFn: () => driversService.detail(id) });
   const d = data?.data;

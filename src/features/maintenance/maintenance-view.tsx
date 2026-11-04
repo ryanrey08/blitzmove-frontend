@@ -82,7 +82,9 @@ export function MaintenanceView() {
   const router = useRouter();
   const notify = useToast();
   const searchParams = useSearchParams();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can("maintenance.create");
+  const canOperate = can(["maintenance.update", "maintenance.delete"]);
   const { vehicleOptions } = useFleetOptions();
   const { params, update, setPage } = useListParams({ vehicle_id: searchParams.get("vehicle") ?? "", status: searchParams.get("status") ?? "", from: "", to: "", sort: "" });
   const [view, setView] = useState<"list" | "calendar">("list");
@@ -194,7 +196,7 @@ export function MaintenanceView() {
           <Button variant="secondary" size="lg" onClick={exportAll} loading={exporting} disabled={!list.data?.meta.total}>
             <Download className="h-4 w-4" /> Export
           </Button>
-          {canOperate && (
+          {canCreate && (
             <Button size="lg" onClick={() => router.push(params.vehicle_id ? `${MAINTENANCE_PATH}/create?vehicle=${params.vehicle_id}` : `${MAINTENANCE_PATH}/create`)}>
               <Plus className="h-5 w-5" /> New Maintenance
             </Button>

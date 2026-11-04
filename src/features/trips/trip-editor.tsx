@@ -136,7 +136,8 @@ function formatDuration(minutes: number) {
 
 /** Create and edit page for a trip (`/transportation/trip-scheduling/create` and `/[id]/edit`). */
 export function TripEditor({ tripId }: { tripId?: number }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can(tripId ? "trips.update" : "trips.create");
   const existing = useTrip(tripId ?? null);
 
   if (!canOperate) {

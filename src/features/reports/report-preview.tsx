@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Box, Download, FileSpreadsheet, Printer, X } from "lucide-react";
 import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
+import { usePermissions } from "@/hooks/use-current-user";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ErrorState, LoadingState } from "@/components/ui/states";
 import { VEHICLE_TYPES, labelOf } from "@/lib/constants";
@@ -52,6 +53,7 @@ export function exportReportCsv(report: ReportDetail) {
 }
 
 export function ReportPreview({ reportId, onClose }: { reportId: number; onClose: () => void }) {
+  const canExport = usePermissions().can("reports.export");
   const query = useQuery({ queryKey: ["reports", reportId], queryFn: () => reportsService.get(reportId).then((r) => r.data) });
   const report = query.data;
 
@@ -69,7 +71,7 @@ export function ReportPreview({ reportId, onClose }: { reportId: number; onClose
       <div className="flex-1 p-4">
         {query.isLoading ? <LoadingState label="Building report…" /> : query.error ? <ErrorState message={query.error.message} onRetry={() => query.refetch()} /> : report && <ReportDocument report={report} />}
       </div>
-      {report && (
+      {report && canExport && (
         <div className="grid grid-cols-1 gap-2 border-t border-ink-100 px-4 py-3 sm:grid-cols-3">
           <Button variant="secondary" size="sm" className="h-9 px-2" onClick={printReport} title="Opens the print dialog; choose “Save as PDF”">
             <Download className="h-4 w-4" /> Download (PDF)

@@ -18,7 +18,8 @@ import { Costs, Details, Documents, History, VehicleSummary } from "./maintenanc
 
 /** `/fleet/maintenance/[id]`: one maintenance record on its own page (the list's side panel is the quick view). */
 export function MaintenanceDetail({ id }: { id: number }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("maintenance.update");
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["maintenance", id], queryFn: () => maintenanceService.get(id).then((r) => r.data) });
   const r = data;

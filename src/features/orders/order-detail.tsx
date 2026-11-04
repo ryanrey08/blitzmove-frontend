@@ -26,7 +26,8 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
 }
 
 export function OrderDetail({ id }: { id: number }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("orders.update");
   const [editing, setEditing] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["order", id], queryFn: () => ordersService.get(id) });

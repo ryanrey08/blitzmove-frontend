@@ -14,7 +14,7 @@ import { Field, FormError, Input } from "@/components/ui/form";
 import { PageHeader } from "@/components/ui/page-header";
 import { useToast } from "@/components/ui/toast";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { formatDateTime, humanize } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 import { useUpdatePasswordMutation, useUpdateProfileMutation } from "@/store/services/authApi";
 import { passwordRules } from "../auth/schemas";
 import { applyApiErrors, nullable } from "../shared";
@@ -137,16 +137,12 @@ export function ProfileView() {
             <p className="mt-3 text-lg font-semibold text-ink-900">{user.name}</p>
             <p className="text-sm text-ink-500">{user.job_title ?? "—"}</p>
             <Badge tone="red" className="mt-3">
-              <ShieldCheck className="h-3.5 w-3.5" /> {humanize(user.role)}
+              <ShieldCheck className="h-3.5 w-3.5" /> {user.role?.name ?? "No role"}
             </Badge>
             <dl className="mt-5 w-full space-y-1 text-left text-sm">
               <div className="flex justify-between">
-                <dt className="text-ink-500">Can manage operations</dt>
-                <dd className="font-medium">{user.permissions.manage_operations ? "Yes" : "No"}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-ink-500">Can manage fleet</dt>
-                <dd className="font-medium">{user.permissions.manage_fleet ? "Yes" : "No"}</dd>
+                <dt className="text-ink-500">Permissions</dt>
+                <dd className="font-medium">{user.permissions.length}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-ink-500">Last sign in</dt>

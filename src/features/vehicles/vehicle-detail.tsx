@@ -17,7 +17,8 @@ import { vehiclesService } from "@/services/resources";
 import { DetailRow } from "../orders/order-detail";
 
 export function VehicleDetail({ id }: { id: number }) {
-  const { canManageFleet } = usePermissions();
+  const { can } = usePermissions();
+  const canManageFleet = can("vehicles.update");
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["vehicle", id], queryFn: () => vehiclesService.get(id) });
   const v = data?.data;

@@ -139,7 +139,8 @@ function displayStatus(status: string, scheduled: string): MaintenanceDisplaySta
 
 /** `/fleet/maintenance/create` and `/fleet/maintenance/[id]/edit` (same layout family as Add Fuel Transaction / Upload Document). */
 export function MaintenanceEditor({ recordId, defaultVehicleId }: { recordId?: number; defaultVehicleId?: string }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can(recordId ? "maintenance.update" : "maintenance.create");
   const existing = useQuery({
     queryKey: ["maintenance", recordId, "form"],
     queryFn: () => maintenanceService.get(recordId!).then((r) => r.data),

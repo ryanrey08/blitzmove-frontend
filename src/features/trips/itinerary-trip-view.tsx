@@ -93,7 +93,8 @@ export function ItineraryTripView({ tripId }: { tripId: number }) {
 
 function ItineraryPreview({ trip }: { trip: Trip }) {
   const router = useRouter();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("trips.update");
   const { configured } = useRoutingStatus();
   const [editingStop, setEditingStop] = useState<TripStop | null | undefined>(undefined);
   const [removing, setRemoving] = useState<TripStop | null>(null);

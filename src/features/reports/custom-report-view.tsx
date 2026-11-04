@@ -59,7 +59,8 @@ export function CustomReportView() {
   const notify = useToast();
   const queryClient = useQueryClient();
   const user = useCurrentUser();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("reports.delete");
   const panelRef = useRef<HTMLDivElement>(null);
   const { vehicleOptions, driverOptions } = useFleetOptions();
   const config = useReportConfig(defaults, ["reports", "custom-preview"]);
@@ -256,9 +257,11 @@ export function CustomReportView() {
           exporting={exporting}
           exportItems={[{ label: "Report (Excel CSV)", icon: <FileSpreadsheet />, disabled: !preview.data?.meta.total || !fields.length, onSelect: exportRows }]}
           actions={
-            <Button onClick={() => setSaving(true)} disabled={!fields.length} title="Save these settings to open the report again later">
-              <BookmarkPlus className="h-4 w-4" /> Save Report
-            </Button>
+            can("reports.create") && (
+              <Button onClick={() => setSaving(true)} disabled={!fields.length} title="Save these settings to open the report again later">
+                <BookmarkPlus className="h-4 w-4" /> Save Report
+              </Button>
+            )
           }
         >
           {fields.length ? (

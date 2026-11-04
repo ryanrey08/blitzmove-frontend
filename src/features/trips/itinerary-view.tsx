@@ -67,7 +67,8 @@ function progressActions(stop: TripStop): { status: StopStatus; label: string }[
 
 export function ItineraryView() {
   const router = useRouter();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("trips.update");
   const notify = useToast();
   const { params, update, setPage } = useListParams({ range: "today", date: format(new Date(), "yyyy-MM-dd"), status: "", trip_status: "", per_page: 15 });
   const range = params.range as Range;

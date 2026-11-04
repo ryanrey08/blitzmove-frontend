@@ -108,7 +108,8 @@ export function FuelReportView() {
   const router = useRouter();
   const notify = useToast();
   const queryClient = useQueryClient();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("fuel.update");
   const { vehicleOptions, driverOptions } = useFleetOptions();
   const configRef = useRef<HTMLDivElement>(null);
 
@@ -448,7 +449,7 @@ export function FuelReportView() {
                     <Filter className="h-4 w-4" /> Filter
                     {filterCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 text-[0.65rem] leading-4 font-semibold text-white">{filterCount}</span>}
                   </Button>
-                  <Dropdown
+                  {can("reports.export") && <Dropdown
                     trigger={({ toggle, open }) => (
                       <Button variant="secondary" onClick={toggle} loading={exporting} aria-expanded={open}>
                         <Download className="h-4 w-4" /> Export <ChevronDown className="h-3.5 w-3.5" />
@@ -459,8 +460,8 @@ export function FuelReportView() {
                       { label: "Report summary (Excel CSV)", icon: <BarChart3 />, disabled: !r, onSelect: exportSummary },
                       { label: "Print / Save as PDF", icon: <Printer />, onSelect: () => window.print() },
                     ]}
-                  />
-                  {canOperate && (
+                  />}
+                  {can("fuel.create") && (
                     <Button onClick={() => router.push(`${FUEL_PATH}/create?return=${encodeURIComponent(PAGE_PATH)}`)}>
                       <Plus className="h-4 w-4" /> Add Transaction
                     </Button>

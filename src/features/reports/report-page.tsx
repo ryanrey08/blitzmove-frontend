@@ -11,6 +11,7 @@ import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { Dropdown, type DropdownItem } from "@/components/ui/dropdown";
 import { Field } from "@/components/ui/form";
 import { SearchInput } from "@/components/ui/search-input";
+import { usePermissions } from "@/hooks/use-current-user";
 import { formatNumber } from "@/lib/utils";
 import type { Paginated } from "@/types/api";
 
@@ -246,6 +247,7 @@ export function TableCard({
   actions?: ReactNode;
   children: ReactNode;
 }) {
+  const canExport = usePermissions().can("reports.export");
   return (
     <Card className="min-w-0">
       <CardHeader
@@ -261,14 +263,16 @@ export function TableCard({
               <Filter className="h-4 w-4" /> Filter
               {filterCount > 0 && <span className="rounded-full bg-brand-600 px-1.5 text-[0.65rem] leading-4 font-semibold text-white">{filterCount}</span>}
             </Button>
-            <Dropdown
-              trigger={({ toggle, open }) => (
-                <Button variant="secondary" onClick={toggle} loading={exporting} aria-expanded={open}>
-                  <Download className="h-4 w-4" /> Export <ChevronDown className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              items={[...exportItems, { label: "Print / Save as PDF", icon: <Printer />, onSelect: () => window.print() }]}
-            />
+            {canExport && (
+              <Dropdown
+                trigger={({ toggle, open }) => (
+                  <Button variant="secondary" onClick={toggle} loading={exporting} aria-expanded={open}>
+                    <Download className="h-4 w-4" /> Export <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                items={[...exportItems, { label: "Print / Save as PDF", icon: <Printer />, onSelect: () => window.print() }]}
+              />
+            )}
             {actions}
           </div>
         }

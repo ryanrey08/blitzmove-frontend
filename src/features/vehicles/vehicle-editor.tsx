@@ -104,7 +104,8 @@ function defaults(v?: Vehicle | null): FormInput {
 
 /** `/fleet/vehicles/create` and `/fleet/vehicles/[id]/edit`. */
 export function VehicleEditor({ vehicleId }: { vehicleId?: number }) {
-  const { canManageFleet } = usePermissions();
+  const { can } = usePermissions();
+  const canManageFleet = can(vehicleId ? "vehicles.update" : "vehicles.create");
   const existing = useQuery({ queryKey: ["vehicle", vehicleId], queryFn: () => vehiclesService.get(vehicleId!).then((r) => r.data), enabled: !!vehicleId });
 
   if (!canManageFleet) return <ErrorState message="You do not have permission to add or edit vehicles." />;

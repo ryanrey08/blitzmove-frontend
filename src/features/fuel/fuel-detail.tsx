@@ -18,7 +18,8 @@ import { FUEL_PATH } from "./fuel-editor";
 
 /** `/fleet/fuel/[id]`: one fuel transaction with its vehicle, driver and receipt photo. */
 export function FuelDetail({ id }: { id: number }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("fuel.update");
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["fuel", "detail", id], queryFn: () => fuelService.get(id).then((r) => r.data) });
   const r = data;

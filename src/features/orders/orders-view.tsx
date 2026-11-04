@@ -115,7 +115,9 @@ export function OrdersView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const notify = useToast();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can("orders.create");
+  const canOperate = can(["orders.update", "orders.delete"]);
   const { params, update, setPage } = useListParams({
     search: searchParams.get("search") ?? "",
     sort: "-created_at",
@@ -194,7 +196,7 @@ export function OrdersView() {
           <p className="mt-1 text-sm text-ink-500 sm:text-base">Manage and track all customer orders from booking to delivery.</p>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-3">
-          {canOperate && (
+          {canCreate && (
             <Button variant="secondary" size="lg" onClick={() => setImporting(true)}>
               <Upload className="h-4 w-4" /> Import Orders
             </Button>
@@ -202,7 +204,7 @@ export function OrdersView() {
           <Button variant="secondary" size="lg" onClick={() => runExport(false)} loading={exporting}>
             <Download className="h-4 w-4" /> Export
           </Button>
-          {canOperate && (
+          {canCreate && (
             <Button size="lg" onClick={() => setEditing(null)} className="min-w-36">
               <Plus className="h-5 w-5" /> New Order
             </Button>

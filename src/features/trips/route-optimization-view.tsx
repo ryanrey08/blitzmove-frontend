@@ -66,7 +66,9 @@ export function RouteOptimizationView() {
   const router = useRouter();
   const notify = useToast();
   const queryClient = useQueryClient();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("trips.update");
+  const canCreate = can("trips.create");
   const { configured, provider, loaded } = useRoutingStatus();
 
   // ----- Filters ---------------------------------------------------------------
@@ -296,7 +298,7 @@ export function RouteOptimizationView() {
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap">{o.weight_kg ? `${formatNumber(o.weight_kg)} kg` : "—"}</td>
                         <td className="px-3 py-2 text-center">
-                          {canOperate && (
+                          {canCreate && (
                             <button onClick={() => router.push(`/transportation/trip-scheduling/create?order=${o.id}`)} className="rounded-md bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700 hover:bg-brand-100">
                               Assign
                             </button>

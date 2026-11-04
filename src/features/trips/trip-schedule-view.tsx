@@ -47,14 +47,16 @@ function When({ value }: { value: string | null }) {
 
 export function TripScheduleView() {
   const router = useRouter();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can("trips.create");
+  const canOperate = can(["trips.update", "trips.delete"]);
   const notify = useToast();
   const { params, update, setPage } = useListParams({ sort: "-departure_at", status: "", vehicle_id: "", driver_id: "", from: "", to: "" });
   const [deleting, setDeleting] = useState<Trip | null>(null);
 
   const list = useQuery({ queryKey: ["trips", params], queryFn: () => tripsService.list(params), placeholderData: keepPreviousData });
-  const vehicles = useQuery({ queryKey: ["vehicles", "options"], queryFn: () => vehiclesService.list({ per_page: 100, sort: "plate_number" }), staleTime: 60_000 });
-  const drivers = useQuery({ queryKey: ["drivers", "options"], queryFn: () => driversService.list({ per_page: 100, sort: "full_name" }), staleTime: 60_000 });
+  const vehicles = useQuery({ queryKey: ["vehicles", "options"], queryFn: () => vehiclesService.list({ per_page: 100, sort: "plate_number" }), staleTime: 60_000, enabled: can("vehicles.view") });
+  const drivers = useQuery({ queryKey: ["drivers", "options"], queryFn: () => driversService.list({ per_page: 100, sort: "full_name" }), staleTime: 60_000, enabled: can("drivers.view") });
 
   const remove = useApiMutation(() => tripsService.remove(deleting!.id), { invalidate: TRIP_KEYS, onSuccess: () => setDeleting(null) });
 
@@ -89,7 +91,7 @@ export function TripScheduleView() {
             <Button variant="secondary" size="lg" onClick={runExport} loading={exporting}>
               <Download className="h-4 w-4" /> Export
             </Button>
-            {canOperate && (
+            {canCreate && (
               <Button size="lg" onClick={() => router.push(`${TRIPS_PATH}/create`)} className="min-w-40">
                 <Plus className="h-5 w-5" /> Add New Trip
               </Button>
@@ -139,7 +141,7 @@ export function TripScheduleView() {
               : {
                   title: "No trips yet",
                   description: "Scheduled trips will appear here.",
-                  action: canOperate && (
+                  action: canCreate && (
                     <Button size="sm" onClick={() => router.push(`${TRIPS_PATH}/create`)}>
                       <Plus className="h-4 w-4" /> Add New Trip
                     </Button>

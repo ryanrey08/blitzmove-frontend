@@ -58,7 +58,8 @@ export function ReportsOverviewView() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const user = useCurrentUser();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("reports.delete");
   const { vehicleOptions, driverOptions } = useFleetOptions();
 
   // Draft filters in the bar; "Apply Filter" copies them to `applied`, which drives every query.
@@ -214,9 +215,11 @@ export function ReportsOverviewView() {
         title="Reports"
         description="Generate and view comprehensive reports for your fleet operations."
         actions={
-          <Button onClick={() => setGenerating(true)} className="h-11 px-5">
-            <Plus className="h-4 w-4" /> Generate Report
-          </Button>
+          can("reports.create") && (
+            <Button onClick={() => setGenerating(true)} className="h-11 px-5">
+              <Plus className="h-4 w-4" /> Generate Report
+            </Button>
+          )
         }
       />
 
@@ -300,9 +303,11 @@ export function ReportsOverviewView() {
                   placeholder="Search reports..."
                   className="w-48 sm:w-56"
                 />
-                <Button variant="secondary" onClick={exportList} loading={exporting} disabled={!list.data?.meta.total}>
-                  <Download className="h-4 w-4" /> Export
-                </Button>
+                {can("reports.export") && (
+                  <Button variant="secondary" onClick={exportList} loading={exporting} disabled={!list.data?.meta.total}>
+                    <Download className="h-4 w-4" /> Export
+                  </Button>
+                )}
               </div>
             }
           />
@@ -320,7 +325,7 @@ export function ReportsOverviewView() {
                 : {
                     title: "No reports generated yet",
                     description: "Generate a report to snapshot a period and filters. Its figures are computed from your trip and fuel records.",
-                    action: (
+                    action: can("reports.create") && (
                       <Button onClick={() => setGenerating(true)}>
                         <Plus className="h-4 w-4" /> Generate Report
                       </Button>

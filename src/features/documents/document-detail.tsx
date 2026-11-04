@@ -21,7 +21,8 @@ const isPdf = (f: DocumentFile) => f.mime_type === "application/pdf" || /\.pdf$/
 
 /** `/fleet/documents/[owner]/[id]`: one vehicle or driver document with its owner and files. */
 export function DocumentDetail({ owner, id }: { owner: DocumentOwner; id: number }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("documents.update");
   const router = useRouter();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ["documents", owner, id, "detail"], queryFn: () => documentsService.get(owner, id).then((r) => r.data) });
   const d = data;

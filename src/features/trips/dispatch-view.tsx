@@ -62,7 +62,8 @@ function When({ value }: { value: string | null }) {
 export function DispatchView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("dispatch.update");
   const initialStatus = searchParams.get("status") ?? "";
   const notify = useToast();
   const { params, update, setPage } = useListParams({

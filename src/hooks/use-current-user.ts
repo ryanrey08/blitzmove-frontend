@@ -11,7 +11,7 @@ export function useCurrentUser(): User {
   return user;
 }
 
-/** Mirrors the API gates: manage-operations and manage-fleet. */
+/** `can("users.create")`, `can(["trips.view", "dispatch.view"])` (any of), `hasPermission`, `hasRole("super-admin")`. */
 export function usePermissions() {
   return useAppSelector(selectPermissions);
 }

@@ -42,8 +42,19 @@ export const authSlice = createSlice({
 export const { sessionLoaded, userUpdated, signOutStarted, signOutFailed, signedOut } = authSlice.actions;
 export const { selectCurrentUser, selectSigningOut } = authSlice.selectors;
 
-/** Mirrors the API gates: manage-operations and manage-fleet. */
-export const selectPermissions = createSelector([selectCurrentUser], (user) => ({
-  canOperate: !!user?.permissions.manage_operations,
-  canManageFleet: !!user?.permissions.manage_fleet,
-}));
+const SUPER_ADMIN = "super-admin";
+
+/**
+ * Permission helpers built from the signed-in user's role (`module.action` slugs from
+ * GET auth/me). They only shape the UI; the API checks every request itself.
+ */
+export const selectPermissions = createSelector([selectCurrentUser], (user) => {
+  const granted = new Set(user?.permissions ?? []);
+  const superAdmin = user?.role?.slug === SUPER_ADMIN && !!user.role.is_active;
+  const hasPermission = (permission: string) => superAdmin || granted.has(permission);
+  /** True when the user holds any of the given permissions (a single slug or a list). */
+  const can = (permission: string | readonly string[]) =>
+    typeof permission === "string" ? hasPermission(permission) : permission.some(hasPermission);
+  const hasRole = (slug: string) => user?.role?.slug === slug;
+  return { can, hasPermission, hasRole, isSuperAdmin: superAdmin, permissions: [...granted] };
+});

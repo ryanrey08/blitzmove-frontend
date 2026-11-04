@@ -7,7 +7,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useLogout } from "@/hooks/use-logout";
-import { humanize } from "@/lib/utils";
 
 export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
   const router = useRouter();
@@ -27,7 +26,7 @@ export function Topbar({ onMenuClick }: { onMenuClick: () => void }) {
               <Avatar name={user.name} />
               <span className="hidden text-left sm:block">
                 <span className="block text-sm font-semibold text-ink-900">{user.name}</span>
-                <span className="block text-xs text-ink-500">{user.job_title ?? humanize(user.role)}</span>
+                <span className="block text-xs text-ink-500">{user.job_title ?? user.role?.name}</span>
               </span>
               <ChevronDown className="hidden h-4 w-4 text-ink-500 sm:block" />
             </button>

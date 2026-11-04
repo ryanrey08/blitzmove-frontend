@@ -1,7 +1,7 @@
 // Shapes returned by the BlitzMove Laravel API (app/Http/Resources).
 // Status values mirror the PHP enums in blitzmove-backend/app/Enums.
 
-export type UserRole = "admin" | "manager" | "dispatcher" | "viewer";
+export type UserStatus = "active" | "inactive" | "suspended";
 export type OrderStatus = "pending" | "scheduled" | "in_transit" | "delivered" | "cancelled";
 export type TripStatus = "scheduled" | "dispatched" | "in_progress" | "completed" | "cancelled";
 export type VehicleStatus = "available" | "on_trip" | "maintenance" | "inactive";
@@ -35,16 +35,82 @@ export type DriverDocumentType =
 export type ExpiryStatus = "valid" | "expiring_soon" | "expired" | "no_expiry";
 export type DocumentOwner = "vehicle" | "driver";
 
-export interface User {
+/** A user as embedded in other records (created by, dispatched by, ...). */
+export interface UserSummary {
   id: number;
   name: string;
   email: string;
-  role: UserRole;
   job_title: string | null;
+}
+
+export interface RoleSummary {
+  id: number;
+  name: string;
+  slug: string;
+  is_active: boolean;
+}
+
+/** The signed-in user (GET auth/me): one role and the permission slugs it grants. */
+export interface User extends UserSummary {
+  username: string | null;
   phone: string | null;
+  status: UserStatus;
   is_active: boolean;
   last_login_at: string | null;
-  permissions: { manage_operations: boolean; manage_fleet: boolean };
+  role: RoleSummary | null;
+  roles: string[];
+  permissions: string[];
+}
+
+/** A user as listed and edited in User Management. */
+export interface ManagedUser extends UserSummary {
+  first_name: string | null;
+  middle_name: string | null;
+  last_name: string | null;
+  username: string | null;
+  phone: string | null;
+  status: UserStatus;
+  is_sample: boolean;
+  role: RoleSummary | null;
+  driver?: { id: number; full_name: string; employee_code: string } | null;
+  last_login_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PermissionItem {
+  id?: number;
+  slug: string;
+  name: string;
+  action?: string;
+  description: string | null;
+}
+
+export interface PermissionModule {
+  module: string;
+  label: string;
+  permissions: PermissionItem[];
+}
+
+export interface Role {
+  id: number;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_system: boolean;
+  is_super_admin: boolean;
+  is_active: boolean;
+  users_count?: number;
+  permissions_count?: number;
+  permissions?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserOptions {
+  roles: (RoleSummary & { assignable: boolean })[];
+  statuses: { value: UserStatus; label: string }[];
+  drivers: { id: number; full_name: string; employee_code: string; user_id: number | null }[];
 }
 
 export interface Driver {
@@ -179,7 +245,7 @@ export interface Order {
   cancelled_at: string | null;
   cancellation_reason: string | null;
   trips?: Trip[];
-  created_by?: User | null;
+  created_by?: UserSummary | null;
   created_at: string;
   updated_at: string;
 }
@@ -206,7 +272,7 @@ export interface DispatchAssignment {
   id: number;
   vehicle?: Vehicle;
   driver?: Driver;
-  assigned_by?: User | null;
+  assigned_by?: UserSummary | null;
   assigned_at: string;
   released_at: string | null;
   reason: string | null;
@@ -238,10 +304,10 @@ export interface Trip {
   status: TripStatus;
   allowed_transitions: TripStatus[];
   dispatched_at: string | null;
-  dispatched_by?: User | null;
+  dispatched_by?: UserSummary | null;
   dispatch_notes: string | null;
   notes: string | null;
-  created_by?: User | null;
+  created_by?: UserSummary | null;
   stops_count?: number;
   stops?: TripStop[];
   assignments?: DispatchAssignment[];
@@ -365,7 +431,7 @@ export interface FleetDocument {
   files_count?: number;
   has_file?: boolean;
   notes: string | null;
-  uploaded_by?: User | null;
+  uploaded_by?: UserSummary | null;
   created_at: string;
   updated_at: string;
 }

@@ -92,7 +92,8 @@ function defaults(d?: Driver | null): FormInput {
 
 /** `/fleet/drivers/create` and `/fleet/drivers/[id]/edit` (same layout as Add Vehicle). */
 export function DriverEditor({ driverId }: { driverId?: number }) {
-  const { canManageFleet } = usePermissions();
+  const { can } = usePermissions();
+  const canManageFleet = can(driverId ? "drivers.update" : "drivers.create");
   const existing = useQuery({
     queryKey: ["driver", driverId, "form"],
     queryFn: () => driversService.get(driverId!).then((r) => r.data),

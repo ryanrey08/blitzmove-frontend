@@ -69,7 +69,9 @@ export function DriversView() {
   const router = useRouter();
   const notify = useToast();
   const searchParams = useSearchParams();
-  const { canManageFleet } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can("drivers.create");
+  const canManageFleet = can(["drivers.update", "drivers.delete"]);
   const { params, update, setPage } = useListParams({
     sort: "full_name",
     status: "",
@@ -161,7 +163,7 @@ export function DriversView() {
           <h1 className="text-2xl font-bold tracking-tight text-ink-900 sm:text-3xl">Drivers</h1>
           <p className="mt-1 text-sm text-ink-500 sm:text-base">Manage your drivers, licenses, documents, and assignments.</p>
         </div>
-        {canManageFleet && (
+        {canCreate && (
           <Button size="lg" onClick={() => router.push(`${DRIVERS_PATH}/create`)} className="min-w-36">
             <Plus className="h-5 w-5" /> Add Driver
           </Button>

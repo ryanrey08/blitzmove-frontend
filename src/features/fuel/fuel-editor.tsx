@@ -92,7 +92,8 @@ export const vehicleLabel = (v: Vehicle) => `${v.plate_number} - ${v.make} ${v.m
 
 /** `/fleet/fuel/create` and `/fleet/fuel/[id]/edit` (same layout family as Add Vehicle / Add Driver). */
 export function FuelEditor({ recordId, defaultVehicleId }: { recordId?: number; defaultVehicleId?: string }) {
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can(recordId ? "fuel.update" : "fuel.create");
   const existing = useQuery({
     queryKey: ["fuel", recordId, "form"],
     queryFn: () => fuelService.get(recordId!).then((r) => r.data),

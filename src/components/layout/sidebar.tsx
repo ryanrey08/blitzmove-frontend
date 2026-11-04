@@ -3,12 +3,12 @@
 import { ChevronDown, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Logo } from "@/components/layout/logo";
 import { Avatar } from "@/components/ui/avatar";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, usePermissions } from "@/hooks/use-current-user";
 import { useLogout } from "@/hooks/use-logout";
-import { NAVIGATION, type NavGroup } from "@/lib/navigation";
+import { homePath, type NavGroup, visibleNavigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useAppDispatch } from "@/store/hooks";
 import { mobileNavClosed } from "@/store/slices/uiSlice";
@@ -26,6 +26,8 @@ function groupIsActive(pathname: string, group: NavGroup) {
 export function Sidebar() {
   const pathname = usePathname();
   const user = useCurrentUser();
+  const { can } = usePermissions();
+  const navigation = useMemo(() => visibleNavigation(can), [can]);
   const dispatch = useAppDispatch();
   const { logout: onLogout, signingOut: loggingOut } = useLogout();
   const onNavigate = () => dispatch(mobileNavClosed());
@@ -39,9 +41,9 @@ export function Sidebar() {
     } catch {
       /* storage unavailable */
     }
-    const current = NAVIGATION.find((g) => g.items && groupIsActive(pathname, g));
+    const current = navigation.find((g) => g.items && groupIsActive(pathname, g));
     setOpen({ ...saved, ...(current ? { [current.label]: true } : {}) });
-  }, [pathname]);
+  }, [pathname, navigation]);
 
   const toggle = (label: string) =>
     setOpen((state) => {
@@ -57,13 +59,13 @@ export function Sidebar() {
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-ink-950 via-ink-900 to-ink-950 text-ink-200">
       <div className="px-5 pt-6 pb-5">
-        <Link href="/dashboard" onClick={onNavigate} aria-label="BlitzMove dashboard">
+        <Link href={homePath(can)} onClick={onNavigate} aria-label="BlitzMove home">
           <Logo variant="light" />
         </Link>
       </div>
 
       <nav className="scrollbar-thin flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label="Main">
-        {NAVIGATION.filter((group) => !group.hidden).map((group) => {
+        {navigation.map((group) => {
           const Icon = group.icon;
           const active = groupIsActive(pathname, group);
           const base =
@@ -99,7 +101,7 @@ export function Sidebar() {
               </button>
               {expanded && (
                 <ul className="mt-1 mb-2 ml-5 space-y-0.5 border-l border-white/10 pl-3">
-                  {group.items!.filter((item) => !item.hidden).map((item) => {
+                  {group.items!.map((item) => {
                     const itemActive = isActive(pathname, item.href);
                     return (
                       <li key={item.href}>
@@ -146,7 +148,7 @@ export function Sidebar() {
           <Avatar name={user.name} size="sm" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{user.name}</p>
-            <p className="truncate text-xs text-ink-400">{user.job_title ?? user.role}</p>
+            <p className="truncate text-xs text-ink-400">{user.job_title ?? user.role?.name}</p>
           </div>
         </Link>
         <p className="mt-4 text-lg leading-tight font-extrabold text-white italic">

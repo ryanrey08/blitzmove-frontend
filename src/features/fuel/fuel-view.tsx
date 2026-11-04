@@ -27,7 +27,9 @@ import { useFleetOptions } from "./use-fleet-options";
 export function FuelView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can("fuel.create");
+  const canOperate = can(["fuel.update", "fuel.delete"]);
   const { vehicleOptions } = useFleetOptions();
   const { params, update, setPage } = useListParams({ sort: "-fueled_at", vehicle_id: searchParams.get("vehicle") ?? "", fuel_type: "", from: "", to: "" });
   const [deleting, setDeleting] = useState<FuelRecord | null>(null);
@@ -45,7 +47,7 @@ export function FuelView() {
         title="Fuel Management"
         description="Fuel purchases, consumption and expense per vehicle."
         actions={
-          canOperate && (
+          canCreate && (
             <Button onClick={() => router.push(params.vehicle_id ? `${FUEL_PATH}/create?vehicle=${params.vehicle_id}` : `${FUEL_PATH}/create`)}>
               <Plus className="h-4 w-4" /> Add Fuel Transaction
             </Button>

@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { Suspense, useEffect, useLayoutEffect, type ReactNode } from "react";
+import { RouteGuard } from "@/components/auth/route-guard";
 import { NavigationProgress } from "@/components/layout/navigation-progress";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -95,7 +96,9 @@ export function AppShell({ user, children }: { user: User; children: ReactNode }
 
       <div className={cn("flex min-h-screen flex-col transition-[padding] print:pl-0", collapsed ? "lg:pl-0" : "lg:pl-[17rem]")}>
         <Topbar onMenuClick={toggleMenu} />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <RouteGuard>{children}</RouteGuard>
+        </main>
       </div>
     </div>
   );

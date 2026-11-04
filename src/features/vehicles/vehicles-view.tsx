@@ -25,7 +25,9 @@ import type { Vehicle } from "@/types/api";
 
 export function VehiclesView() {
   const router = useRouter();
-  const { canManageFleet } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can("vehicles.create");
+  const canManageFleet = can(["vehicles.update", "vehicles.delete"]);
   const { params, update, setPage } = useListParams({ sort: "plate_number", status: "", vehicle_type: "" });
   const [deleting, setDeleting] = useState<Vehicle | null>(null);
 
@@ -42,7 +44,7 @@ export function VehiclesView() {
         title="Vehicles"
         description="Manage your fleet, capacities and regular driver assignments."
         actions={
-          canManageFleet && (
+          canCreate && (
             <Button onClick={() => router.push("/fleet/vehicles/create")}>
               <Plus className="h-4 w-4" /> Add Vehicle
             </Button>

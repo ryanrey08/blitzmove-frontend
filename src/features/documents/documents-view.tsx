@@ -28,7 +28,9 @@ import { DOCUMENTS_PATH } from "./document-editor";
 export function DocumentsView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canCreate = can("documents.create");
+  const canOperate = can(["documents.update", "documents.delete"]);
   const [owner, setOwner] = useState<DocumentOwner>(searchParams.get("owner") === "driver" ? "driver" : "vehicle");
   const { vehicleOptions, driverOptions } = useFleetOptions();
   const { params, update, setPage } = useListParams({ sort: "expires_at", owner_id: searchParams.get("id") ?? "", document_type: "", expiry_status: "" });
@@ -45,7 +47,7 @@ export function DocumentsView() {
         title="Documents"
         description="Registrations, insurance, licenses and permits with expiry tracking."
         actions={
-          canOperate && (
+          canCreate && (
             <Button onClick={() => router.push(`${DOCUMENTS_PATH}/upload?owner=${owner}${params.owner_id ? `&id=${params.owner_id}` : ""}`)}>
               <Upload className="h-4 w-4" /> Upload Document
             </Button>

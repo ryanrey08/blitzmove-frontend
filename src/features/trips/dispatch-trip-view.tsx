@@ -84,7 +84,8 @@ export function DispatchTripView({ tripId }: { tripId: number }) {
 
 function DispatchForm({ trip }: { trip: Trip }) {
   const router = useRouter();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can("dispatch.update");
   const transition = useTripTransition();
   const moves = canOperate ? availableTransitions(trip) : [];
   const { configured } = useRoutingStatus();

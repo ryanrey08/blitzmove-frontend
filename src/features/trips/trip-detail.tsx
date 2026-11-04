@@ -15,11 +15,16 @@ import { formatDateTime, formatNumber } from "@/lib/utils";
 import { tripsService } from "@/services/resources";
 import { DetailRow } from "../orders/order-detail";
 import { DeleteTripDialog, TRIPS_PATH, isDeletable, isEditable } from "./trip-schedule-view";
+import { TRANSITIONS, availableTransitions, useTripTransition } from "./trip-status-actions";
 import { TRIP_KEYS, useTrip } from "./use-trip";
 
 export function TripDetail({ id }: { id: number }) {
   const router = useRouter();
-  const { canOperate } = usePermissions();
+  const { can } = usePermissions();
+  const canOperate = can(["trips.update", "trips.delete"]);
+  // Drivers (trips.update_status without dispatch rights) start and complete their own trips here.
+  const canProgress = can("trips.update_status") && !can("dispatch.update");
+  const transition = useTripTransition();
   const [deleting, setDeleting] = useState(false);
   const { data, isLoading, error, refetch } = useTrip(id);
   const trip = data?.data;
@@ -49,6 +54,14 @@ export function TripDetail({ id }: { id: number }) {
           <Button variant="secondary" onClick={() => router.push(`/transportation/itinerary/${trip.id}`)}>
             <MapPinned className="h-4 w-4" /> Itinerary
           </Button>
+          {canProgress &&
+            availableTransitions(trip)
+              .filter((key) => key === "in_progress" || key === "completed")
+              .map((key) => (
+                <Button key={key} onClick={() => transition.request(trip, key)} loading={transition.pending}>
+                  {TRANSITIONS[key].icon} {TRANSITIONS[key].label}
+                </Button>
+              ))}
           {canOperate && (
             <>
               <Button variant="secondary" onClick={() => setDeleting(true)} disabled={!isDeletable(trip)} title={isDeletable(trip) ? undefined : "In-progress trips cannot be deleted"}>
@@ -162,6 +175,7 @@ export function TripDetail({ id }: { id: number }) {
       )}
 
       <DeleteTripDialog trip={deleting ? trip : null} loading={remove.isPending} error={remove.error?.message} onConfirm={() => remove.mutate(undefined)} onClose={() => { remove.reset(); setDeleting(false); }} />
+      {transition.dialog}
     </>
   );
 }
